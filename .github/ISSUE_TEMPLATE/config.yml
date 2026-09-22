@@ -1,0 +1,10 @@
+blank_issues_enabled: true
+contact_links:
+  - name: A site stopped working
+    url: https://github.com/yt-dlp/yt-dlp/issues
+    about: >
+      Extraction is yt-dlp's job. If one site broke but others work, run
+      `yt-dlp -U` and report it upstream — fixing it here is not possible.
+  - name: Security vulnerability
+    url: https://github.com/iankiku/anytranscript/security/advisories/new
+    about: Report privately, not as a public issue.

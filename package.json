@@ -1,0 +1,65 @@
+{
+  "name": "@iankiku/anytranscript",
+  "version": "1.0.0",
+  "description": "Transcribe any social video URL — Instagram, TikTok, YouTube. Platform captions when they exist, local Whisper when they don't.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Ian Kiku <iankiku@gmail.com>",
+  "bin": {
+    "anytranscript": "dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "node --test test/*.test.js",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "transcript",
+    "transcription",
+    "whisper",
+    "whisper-cpp",
+    "yt-dlp",
+    "youtube",
+    "tiktok",
+    "instagram",
+    "reels",
+    "captions",
+    "subtitles",
+    "speech-to-text",
+    "cli",
+    "agent",
+    "mcp"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "typescript": "^5.6.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iankiku/anytranscript.git"
+  },
+  "homepage": "https://github.com/iankiku/anytranscript#readme",
+  "bugs": {
+    "url": "https://github.com/iankiku/anytranscript/issues"
+  }
+}

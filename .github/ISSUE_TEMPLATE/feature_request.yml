@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest something this should do
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is a thin layer over yt-dlp and Whisper on purpose. Requests that
+        keep it thin land much faster than ones that add a subsystem.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The underlying task, not the feature you have in mind for it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you want it to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: How are you handling it today?
+      description: Including "I can't" — that itself is useful signal.

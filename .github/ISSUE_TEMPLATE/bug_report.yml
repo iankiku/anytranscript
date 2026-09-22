@@ -1,0 +1,69 @@
+name: Bug report
+description: Something behaves differently than documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If a specific site stopped working, try `yt-dlp -U` first (or clear
+        `~/.cache/anytranscript/bin`). Extractors break upstream constantly and
+        that fixes most site-specific reports.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: The exact command
+      description: >
+        Include the flags. Replace any private URL with a public one that
+        reproduces it if you can — a report we cannot run is hard to fix.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: >
+        Run it again with stderr visible and paste everything.
+        **Check it for cookies, API keys, or private URLs before posting.**
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `anytranscript --version`
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Output of `node -v`, `ffmpeg -version | head -1`, and your OS.
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: path
+    attributes:
+      label: Which path was it on?
+      options:
+        - Captions (mostly YouTube)
+        - Whisper — local whisper.cpp
+        - Whisper — hosted (OpenAI or Groq)
+        - Not sure
+    validations:
+      required: true

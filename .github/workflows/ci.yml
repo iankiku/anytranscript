@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ["20.x", "22.x", "24.x"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+      # The unit tests are offline by design. This proves the binary actually
+      # runs on a clean machine, which is where packaging mistakes show up.
+      - name: Smoke-test the built CLI
+        run: node dist/cli.js --version && node dist/cli.js --help
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=moderate
+
+  package:
+    name: Verify publishable contents
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      # Catches the classic mistake of shipping src/ or node_modules, or of
+      # forgetting to build so dist/ is missing entirely.
+      - name: Inspect the tarball
+        run: |
+          npm pack --dry-run
+          npm pack --json | tee /tmp/pack.json
+          node -e '
+            const [pkg] = require("/tmp/pack.json");
+            const files = pkg.files.map((f) => f.path);
+            const stray = files.filter((f) => !/^(dist\/|README\.md$|LICENSE$|package\.json$)/.test(f));
+            if (stray.length) { console.error("unexpected files in tarball:", stray); process.exit(1); }
+            if (!files.includes("dist/cli.js")) { console.error("dist/cli.js missing from tarball"); process.exit(1); }
+            console.log(`tarball OK — ${files.length} files`);
+          '

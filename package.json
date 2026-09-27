@@ -25,7 +25,7 @@
     "node": ">=20.6.0"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/cli.js",
     "dev": "tsc --watch",
     "test": "node --test test/*.test.js",
     "prepublishOnly": "npm run build && npm test"

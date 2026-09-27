@@ -10,7 +10,7 @@ Platform captions when they exist. Local Whisper when they don't. One command ei
 
 [![npm](https://img.shields.io/npm/v/@iankiku/anytranscript?style=flat-square&color=CC3F3F&label=npm)](https://www.npmjs.com/package/@iankiku/anytranscript) [![downloads](https://img.shields.io/npm/dm/@iankiku/anytranscript?style=flat-square&color=5A6370&label=downloads)](https://www.npmjs.com/package/@iankiku/anytranscript) [![CI](https://img.shields.io/github/actions/workflow/status/iankiku/anytranscript/ci.yml?style=flat-square&color=5A6370&label=CI)](https://github.com/iankiku/anytranscript/actions/workflows/ci.yml) [![node](https://img.shields.io/node/v/@iankiku/anytranscript?style=flat-square&color=5A6370&label=node)](https://nodejs.org) [![deps](https://img.shields.io/badge/runtime%20deps-0-5A6370?style=flat-square)](#how-its-built) [![license](https://img.shields.io/badge/license-MIT-5A6370?style=flat-square)](LICENSE)
 
-[Install](#install) · [How it works](#how-it-works) · [CLI](#cli) · [For agents](#for-agents) · [Library](#library) · [How it&#39;s built](#how-its-built)
+[Install](#install) · [How it works](#how-it-works) · [CLI](#cli) · [For agents](#for-agents) · [Library](#library) · [MCP server](#mcp-server) · [How it&#39;s built](#how-its-built)
 
 </div>
 
@@ -358,6 +358,14 @@ own `.vtt`), `resolveYtDlp`, `resolveLocalWhisper`, `ensureModel`,
 `selectBackend`.
 
 ---
+
+## MCP server
+
+Want `transcribe` as a typed tool call for Claude Code, Claude Desktop, or
+any other MCP client, instead of shelling out to this CLI? See
+[anytranscript-mcp](https://github.com/iankiku/anytranscript-mcp) — a
+separate package (`npx @iankiku/anytranscript-mcp`) so this library and CLI
+keep their zero-dependency build.
 
 ## How it's built
 

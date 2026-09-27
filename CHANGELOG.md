@@ -23,6 +23,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-27
+
+### Fixed
+
+- `dist/cli.js` wasn't marked executable after a plain `tsc` build. It didn't
+  surface locally (`npm link` and repeated `npx` runs reuse a cache entry that
+  was already executable from an earlier build), but it could break a fresh
+  global install or a cold `npx` run on some setups. `npm run build` now
+  `chmod +x`'s it as part of the build step.
+
+### Changed
+
+- Broadened discoverability on npm and GitHub: the package description and
+  keywords now name the underlying tech people actually search for (Whisper,
+  whisper.cpp, yt-dlp, VTT) and the use cases this gets built into (agent
+  tooling, RAG, LLM pipelines). Added matching GitHub topics, a repo
+  description, and a homepage link. No behavior change.
+
 ## [1.0.0] - 2026-09-22
 
 First public release. The tool existed as a private Python script before this;
@@ -52,5 +70,6 @@ that history is not covered here.
 - No runtime dependencies, so the package carries no transitive supply-chain
   surface of its own.
 
-[Unreleased]: https://github.com/iankiku/anytranscript/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/iankiku/anytranscript/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/iankiku/anytranscript/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/iankiku/anytranscript/releases/tag/v1.0.0

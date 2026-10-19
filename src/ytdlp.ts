@@ -108,6 +108,36 @@ async function findFile(dir: string, matches: (name: string) => boolean): Promis
 }
 
 /**
+ * Subtitle language codes to try in order. YouTube often lists a video's
+ * original auto-captions under `<lang>-orig` and uses `<lang>` for
+ * auto-translated tracks, which frequently fail with `HTTP Error 429: Too
+ * Many Requests`. Trying `<lang>-orig` first fetches the original track
+ * directly without hitting the rate-limited translation endpoint.
+ */
+export function candidateSubLangs(lang: string): string[] {
+  const trimmed = lang.trim();
+  if (!trimmed || trimmed.includes(",") || trimmed.endsWith("-orig")) {
+    return [trimmed || "en"];
+  }
+  return [`${trimmed}-orig`, trimmed];
+}
+
+export interface FetchCaptionsOptions extends AuthOptions {
+  captionsOnly?: boolean;
+  onProgress?: (message: string) => void;
+}
+
+function summarizeCommandError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const lines = error.message
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const errorLine = lines.find((line) => /^ERROR:/i.test(line));
+  return errorLine ?? lines[0] ?? error.message;
+}
+
+/**
  * Pull existing (human or auto-generated) captions, returning the .vtt path
  * or null when the video has none — the common case for Instagram and TikTok.
  */
@@ -116,26 +146,46 @@ export async function fetchCaptions(
   url: string,
   workdir: string,
   lang: string,
-  auth: AuthOptions,
+  options: FetchCaptionsOptions = {},
 ): Promise<string | null> {
-  await run(bin, [
-    ...BASE_ARGS,
-    "--skip-download",
-    "--write-subs",
-    "--write-auto-subs",
-    "--sub-langs",
-    lang,
-    "--sub-format",
-    "vtt",
-    "--convert-subs",
-    "vtt",
-    "-o",
-    join(workdir, "%(id)s.%(ext)s"),
-    ...authArgs(auth),
-    url,
-  ]);
+  const { captionsOnly = false, onProgress, ...auth } = options;
+  const candidates = candidateSubLangs(lang);
+  let lastError: unknown;
 
-  return findFile(workdir, (name) => name.endsWith(".vtt"));
+  for (const subLang of candidates) {
+    try {
+      await run(bin, [
+        ...BASE_ARGS,
+        "--skip-download",
+        "--write-subs",
+        "--write-auto-subs",
+        "--sub-langs",
+        subLang,
+        "--sub-format",
+        "vtt",
+        "--convert-subs",
+        "vtt",
+        "-o",
+        join(workdir, "%(id)s.%(ext)s"),
+        ...authArgs(auth),
+        url,
+      ]);
+    } catch (error) {
+      lastError = error;
+    }
+
+    const vtt = await findFile(workdir, (name) => name.endsWith(".vtt"));
+    if (vtt) return vtt;
+  }
+
+  if (lastError) {
+    if (captionsOnly) throw lastError;
+    onProgress?.(
+      `caption download failed for "${lang}" (${summarizeCommandError(lastError)}); falling back to audio transcription...`,
+    );
+  }
+
+  return null;
 }
 
 export type AudioFormat = "wav16" | "mp3";

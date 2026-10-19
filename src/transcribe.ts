@@ -12,8 +12,12 @@ import { cleanup, downloadAudio, fetchCaptions, getInfo, resolveYtDlp } from "./
 import { selectBackend, transcribeHosted, transcribeLocal } from "./whisper.js";
 
 export class NoCaptionsError extends Error {
-  constructor(url: string) {
-    super(`no captions available for ${url} and captionsOnly was set`);
+  constructor(url: string, reason?: string) {
+    const suffix = reason ? ` (${reason})` : "";
+    super(
+      `no captions available for ${url}${suffix} and --captions-only was set. ` +
+        "Omit --captions-only to fall back to Whisper audio transcription.",
+    );
     this.name = "NoCaptionsError";
   }
 }
@@ -52,7 +56,11 @@ export async function transcribe(url: string, options: TranscribeOptions = {}): 
 
     if (!whisperOnly) {
       onProgress("checking for existing captions...");
-      const vttPath = await fetchCaptions(bin, url, workdir, lang, auth);
+      const vttPath = await fetchCaptions(bin, url, workdir, lang, {
+        ...auth,
+        captionsOnly,
+        onProgress,
+      });
 
       if (vttPath) {
         media.push(vttPath);

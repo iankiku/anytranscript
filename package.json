@@ -1,6 +1,6 @@
 {
   "name": "@iankiku/anytranscript",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CLI and Node.js library to transcribe any video URL to text — YouTube, Instagram, TikTok, and 1,800+ sites via yt-dlp. Platform captions when they exist, local whisper.cpp or hosted Whisper (OpenAI/Groq) when they don't.",
   "type": "module",
   "license": "MIT",

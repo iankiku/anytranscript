@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-19
+
 ### Fixed
 
 - YouTube videos with only auto-generated captions could fail with `HTTP Error
@@ -88,6 +90,7 @@ that history is not covered here.
 - No runtime dependencies, so the package carries no transitive supply-chain
   surface of its own.
 
-[Unreleased]: https://github.com/iankiku/anytranscript/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/iankiku/anytranscript/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/iankiku/anytranscript/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/iankiku/anytranscript/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/iankiku/anytranscript/releases/tag/v1.0.0

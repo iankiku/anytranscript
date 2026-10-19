@@ -23,6 +23,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- YouTube videos with only auto-generated captions could fail with `HTTP Error
+  429: Too Many Requests` instead of returning a transcript. YouTube stores a
+  video's original auto-captions under `<lang>-orig` (for example `en-orig`)
+  and reserves `<lang>` for auto-translated tracks, which are heavily
+  rate-limited. Caption lookup now tries `<lang>-orig` first and falls back to
+  `<lang>`, and if caption download still fails, it falls through to Whisper
+  audio transcription instead of crashing the run (unless `--captions-only` is
+  set).
+
+### Changed
+
+- Error messages from `yt-dlp` and `ffmpeg` now include plain-English hints on
+  how to recover — for example, passing `--cookies-from-browser chrome` or
+  `--whisper-only` when rate-limited (HTTP 429), passing browser cookies when a
+  video requires sign-in, or installing `ffmpeg` when audio extraction fails.
+
 ## [1.0.1] - 2026-09-27
 
 ### Fixed

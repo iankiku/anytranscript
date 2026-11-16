@@ -1,6 +1,6 @@
 /** On-disk cache for the binaries and model weights we fetch on demand. */
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
 import { chmod, mkdir, rename, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -49,20 +49,38 @@ export interface DownloadOptions {
   label?: string;
 }
 
+/** Downloads in progress in this process, so parallel jobs share one fetch. */
+const inFlight = new Map<string, Promise<string>>();
+
 /**
  * Fetch `url` to `dest` if it isn't cached already.
  *
  * Downloads land on a `.part` file and are verified before being moved into
  * place, so an interrupted or tampered-with download can never leave a
  * truncated binary or model that looks complete on every subsequent run.
+ * Concurrent calls for the same `dest` share one download; each process
+ * writes its own `.part` file, so two processes can't interleave bytes.
  */
 export async function ensureDownloaded(
   url: string,
   dest: string,
-  { mode, sha256, onProgress, label }: DownloadOptions = {},
+  options: DownloadOptions = {},
 ): Promise<string> {
   if (await exists(dest)) return dest;
 
+  let pending = inFlight.get(dest);
+  if (!pending) {
+    pending = download(url, dest, options).finally(() => inFlight.delete(dest));
+    inFlight.set(dest, pending);
+  }
+  return pending;
+}
+
+async function download(
+  url: string,
+  dest: string,
+  { mode, sha256, onProgress, label }: DownloadOptions,
+): Promise<string> {
   const name = label ?? url;
   onProgress?.(`downloading ${name}...`);
   await mkdir(join(dest, ".."), { recursive: true });
@@ -72,7 +90,7 @@ export async function ensureDownloaded(
     throw new Error(`failed to download ${name}: HTTP ${response.status} ${response.statusText}`);
   }
 
-  const partial = `${dest}.part`;
+  const partial = `${dest}.${randomUUID().slice(0, 8)}.part`;
   try {
     await pipeline(
       Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]),
@@ -85,13 +103,14 @@ export async function ensureDownloaded(
       onProgress?.(`verified ${name} (sha256 ${sha256.slice(0, 12)}...)`);
     }
 
+    // chmod before the rename: once `dest` exists, other runs treat it as ready.
+    if (mode !== undefined) await chmod(partial, mode);
     await rename(partial, dest);
   } catch (error) {
     await rm(partial, { force: true });
     throw error;
   }
 
-  if (mode !== undefined) await chmod(dest, mode);
   return dest;
 }
 

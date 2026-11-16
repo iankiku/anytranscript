@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,6 +12,7 @@ const PAYLOAD = Buffer.from("the bytes an upstream would serve");
 const REAL_SHA = createHash("sha256").update(PAYLOAD).digest("hex");
 const WRONG_SHA = "0".repeat(64);
 
+let hits = 0;
 let server;
 let origin;
 let dir;
@@ -19,6 +20,11 @@ let dir;
 before(async () => {
   server = createServer((req, res) => {
     if (req.url === "/artifact.bin") return void res.end(PAYLOAD);
+    if (req.url === "/counted.bin") {
+      hits += 1;
+      // Slow enough that every concurrent caller arrives mid-download.
+      return void setTimeout(() => res.end(PAYLOAD), 50);
+    }
     res.statusCode = 404;
     res.end("not found");
   });
@@ -51,7 +57,8 @@ test("a checksum mismatch is rejected and leaves nothing behind", async () => {
     IntegrityError,
   );
   assert.equal(existsSync(dest), false, "the rejected file must not be left in place");
-  assert.equal(existsSync(`${dest}.part`), false, "the partial file must be cleaned up");
+  const leftovers = (await readdir(dir)).filter((name) => name.startsWith("bad.bin") && name.endsWith(".part"));
+  assert.deepEqual(leftovers, [], "the partial file must be cleaned up");
 });
 
 test("no checksum still downloads — verification is opt-in per artifact", async () => {
@@ -75,4 +82,15 @@ test("an HTTP error surfaces as a plain failure, not an integrity failure", asyn
     (error) => error instanceof Error && !(error instanceof IntegrityError) && /HTTP 404/.test(error.message),
   );
   assert.equal(existsSync(dest), false);
+});
+
+test("concurrent calls for the same file share one download", async () => {
+  const url = origin.replace("artifact.bin", "counted.bin");
+  const dest = join(dir, "shared.bin");
+  const paths = await Promise.all(
+    Array.from({ length: 5 }, () => ensureDownloaded(url, dest, { sha256: REAL_SHA, mode: 0o755 })),
+  );
+  assert.equal(hits, 1, "five parallel callers must trigger exactly one request");
+  assert.deepEqual(new Set(paths), new Set([dest]));
+  assert.equal((await stat(dest)).mode & 0o777, 0o755, "mode is applied before the file appears");
 });

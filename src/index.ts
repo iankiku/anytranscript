@@ -15,7 +15,8 @@ export { resolveYtDlp } from "./ytdlp.js";
 export { resolveLocalWhisper, ensureModel, selectBackend } from "./whisper.js";
 export { runTasks, createLimiter } from "./scheduler.js";
 export type { SchedulerEvent, SchedulerOptions, Task, TaskOutcome } from "./scheduler.js";
-export { CommandError } from "./proc.js";
+export { isRetryable, isRateLimited, siteKey } from "./retry.js";
+export { CommandError, TimeoutError } from "./proc.js";
 export type {
   AuthOptions,
   ModelSize,

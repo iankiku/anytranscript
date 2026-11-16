@@ -4,7 +4,7 @@ import { readdir, rm } from "node:fs/promises";
 import { arch, platform } from "node:os";
 import { join } from "node:path";
 import { cacheDir, ensureDownloaded } from "./cache.js";
-import { isRunnable, run } from "./proc.js";
+import { type Deadline, isRunnable, run } from "./proc.js";
 import type { AuthOptions, VideoInfo } from "./types.js";
 
 const RELEASE_BASE = "https://github.com/yt-dlp/yt-dlp/releases/latest/download";
@@ -40,7 +40,8 @@ async function publishedChecksum(asset: string): Promise<string | undefined> {
   return undefined;
 }
 
-let resolved: string | undefined;
+// The promise, not the path: concurrent first calls must share one download.
+let resolving: Promise<string> | undefined;
 
 /**
  * Find yt-dlp: an explicit path, then `ANYTRANSCRIPT_YTDLP`, then PATH,
@@ -54,22 +55,28 @@ export async function resolveYtDlp(
 ): Promise<string> {
   if (explicit) return explicit;
   if (process.env.ANYTRANSCRIPT_YTDLP) return process.env.ANYTRANSCRIPT_YTDLP;
-  if (resolved) return resolved;
 
-  if (await isRunnable("yt-dlp")) {
-    resolved = "yt-dlp";
-    return resolved;
+  resolving ??= locateYtDlp(onProgress);
+  try {
+    return await resolving;
+  } catch (error) {
+    // Don't pin a failed download: the next call should be able to retry it.
+    resolving = undefined;
+    throw error;
   }
+}
+
+async function locateYtDlp(onProgress?: (message: string) => void): Promise<string> {
+  if (await isRunnable("yt-dlp")) return "yt-dlp";
 
   const asset = releaseAsset();
   const sha256 = await publishedChecksum(asset);
-  resolved = await ensureDownloaded(`${RELEASE_BASE}/${asset}`, cacheDir("bin", asset), {
+  return ensureDownloaded(`${RELEASE_BASE}/${asset}`, cacheDir("bin", asset), {
     mode: 0o755,
     ...(sha256 ? { sha256 } : {}),
     onProgress,
     label: "yt-dlp",
   });
-  return resolved;
 }
 
 function authArgs({ cookiesFromBrowser, cookiesFile }: AuthOptions): string[] {
@@ -81,14 +88,17 @@ function authArgs({ cookiesFromBrowser, cookiesFile }: AuthOptions): string[] {
 
 const BASE_ARGS = ["--no-warnings", "--no-progress", "--ignore-config"];
 
-export async function getInfo(bin: string, url: string, auth: AuthOptions): Promise<VideoInfo> {
-  const { stdout } = await run(bin, [
-    ...BASE_ARGS,
-    "--dump-single-json",
-    "--skip-download",
-    ...authArgs(auth),
-    url,
-  ]);
+export async function getInfo(
+  bin: string,
+  url: string,
+  auth: AuthOptions,
+  limits: Deadline = {},
+): Promise<VideoInfo> {
+  const { stdout } = await run(
+    bin,
+    [...BASE_ARGS, "--dump-single-json", "--skip-download", ...authArgs(auth), url],
+    limits,
+  );
 
   const info = JSON.parse(stdout) as Record<string, unknown>;
   return {
@@ -122,12 +132,13 @@ export function candidateSubLangs(lang: string): string[] {
   return [`${trimmed}-orig`, trimmed];
 }
 
-export interface FetchCaptionsOptions extends AuthOptions {
+export interface FetchCaptionsOptions extends AuthOptions, Deadline {
   captionsOnly?: boolean;
   onProgress?: (message: string) => void;
 }
 
-function summarizeCommandError(error: unknown): string {
+/** The line of a yt-dlp failure that says what went wrong: its `ERROR:` line. */
+export function summarizeCommandError(error: unknown): string {
   if (!(error instanceof Error)) return String(error);
   const lines = error.message
     .split("\n")
@@ -148,7 +159,7 @@ export async function fetchCaptions(
   lang: string,
   options: FetchCaptionsOptions = {},
 ): Promise<string | null> {
-  const { captionsOnly = false, onProgress, ...auth } = options;
+  const { captionsOnly = false, onProgress, signal, timeoutMs, ...auth } = options;
   const candidates = candidateSubLangs(lang);
   let lastError: unknown;
 
@@ -169,8 +180,11 @@ export async function fetchCaptions(
         join(workdir, "%(id)s.%(ext)s"),
         ...authArgs(auth),
         url,
-      ]);
+      ], { signal, timeoutMs });
     } catch (error) {
+      // A cancelled or stalled request says nothing about whether captions
+      // exist, so it must not quietly turn into a Whisper run.
+      if (signal?.aborted || (error instanceof Error && error.name === "TimeoutError")) throw error;
       lastError = error;
     }
 
@@ -200,6 +214,7 @@ export async function downloadAudio(
   workdir: string,
   format: AudioFormat,
   auth: AuthOptions,
+  limits: Deadline = {},
 ): Promise<string> {
   const ext = format === "wav16" ? "wav" : "mp3";
   const formatArgs =
@@ -217,7 +232,7 @@ export async function downloadAudio(
     join(workdir, "%(id)s.%(ext)s"),
     ...authArgs(auth),
     url,
-  ]);
+  ], limits);
 
   const audio = await findFile(workdir, (name) => name.endsWith(`.${ext}`));
   if (!audio) throw new Error(`yt-dlp reported success but no .${ext} landed in ${workdir}`);

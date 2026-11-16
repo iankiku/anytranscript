@@ -374,7 +374,10 @@ interface Transcript {
 
 Every CLI flag has an option counterpart: `lang`, `model`, `backend`,
 `whisperOnly`, `captionsOnly`, `keepMedia`, `workdir`, `cookiesFromBrowser`,
-`cookiesFile`, `ytdlpPath`, `whisperPath`, `onProgress`.
+`cookiesFile`, `ytdlpPath`, `whisperPath`, `onProgress`. Two more for
+long-running callers: `signal` (an `AbortSignal` that stops in-flight
+downloads and Whisper) and `timeoutMs` (fail any single network step that
+runs longer, with a `TimeoutError`).
 
 Throws `NoCaptionsError` when `captionsOnly` finds none, and `CommandError`
 (carrying `stderr`) when yt-dlp or whisper.cpp exits non-zero.
@@ -473,6 +476,7 @@ processes and are verified end-to-end against live URLs instead.
 |---|---|
 | `ANYTRANSCRIPT_YTDLP` | Use this yt-dlp binary instead of resolving one |
 | `ANYTRANSCRIPT_WHISPER` | Use this whisper.cpp binary |
+| `ANYTRANSCRIPT_WHISPER_JOBS` | Local Whisper runs allowed at once in one process (default `1`; raise it on a GPU machine) |
 | `OPENAI_API_KEY` / `GROQ_API_KEY` | Enable the hosted backends |
 | `XDG_CACHE_HOME` | Where binaries and model weights are cached |
 

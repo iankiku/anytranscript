@@ -7,11 +7,13 @@
  * machines that have no local build.
  */
 
+import { randomUUID } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cacheDir, ensureDownloaded, huggingFaceSha256 } from "./cache.js";
-import { isRunnable, run } from "./proc.js";
+import { type Deadline, deadline, isRunnable, run } from "./proc.js";
+import { createLimiter } from "./scheduler.js";
 import type { ModelSize, Segment, WhisperBackend } from "./types.js";
 
 const MODEL_BASE = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main";
@@ -43,7 +45,15 @@ export interface WhisperOptions {
   lang: string;
   binary?: string;
   onProgress?: (message: string) => void;
+  signal?: AbortSignal;
 }
+
+/**
+ * whisper.cpp already uses every core, so two runs at once each take twice as
+ * long and memory doubles. Runs queue for a slot instead, process-wide.
+ * ANYTRANSCRIPT_WHISPER_JOBS raises the limit for machines with a GPU.
+ */
+const localSlot = createLimiter(Math.max(1, Number(process.env.ANYTRANSCRIPT_WHISPER_JOBS) || 1));
 
 /** The whisper.cpp binary on PATH, or null if there isn't one. */
 export async function resolveLocalWhisper(explicit?: string): Promise<string | null> {
@@ -108,13 +118,24 @@ interface WhisperCppJson {
 /** Transcribe a 16 kHz mono WAV with a local whisper.cpp build. */
 export async function transcribeLocal(
   wavPath: string,
-  { model, lang, binary, onProgress }: WhisperOptions,
+  { model, lang, binary, onProgress, signal }: WhisperOptions,
 ): Promise<WhisperResult> {
   const bin = await resolveLocalWhisper(binary);
   if (!bin) throw new Error("whisper.cpp not found — install it with `brew install whisper-cpp`.");
 
   const modelPath = await ensureModel(model, onProgress);
-  const outBase = join(tmpdir(), `anytranscript-${process.pid}-${Date.now()}`);
+  return localSlot(() => runWhisperCpp(bin, modelPath, wavPath, lang, signal));
+}
+
+async function runWhisperCpp(
+  bin: string,
+  modelPath: string,
+  wavPath: string,
+  lang: string,
+  signal?: AbortSignal,
+): Promise<WhisperResult> {
+  signal?.throwIfAborted();
+  const outBase = join(tmpdir(), `anytranscript-${randomUUID()}`);
 
   try {
     await run(bin, [
@@ -124,7 +145,7 @@ export async function transcribeLocal(
       "-oj",
       "-of", outBase,
       "-np",
-    ]);
+    ], { signal });
 
     const parsed = JSON.parse(await readFile(`${outBase}.json`, "utf8")) as WhisperCppJson;
     const segments: Segment[] = (parsed.transcription ?? [])
@@ -155,7 +176,7 @@ interface VerboseJson {
 export async function transcribeHosted(
   audioPath: string,
   provider: HostedProvider,
-  { lang }: Pick<WhisperOptions, "lang">,
+  { lang, ...limits }: Pick<WhisperOptions, "lang"> & Deadline,
 ): Promise<WhisperResult> {
   const { url, model, envVar } = HOSTED[provider];
   const key = process.env[envVar];
@@ -167,11 +188,18 @@ export async function transcribeHosted(
   form.append("response_format", "verbose_json");
   if (lang) form.append("language", lang);
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}` },
-    body: form,
-  });
+  const { signal, reason } = deadline(`${provider} transcription`, limits);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}` },
+      body: form,
+      ...(signal ? { signal } : {}),
+    });
+  } catch (error) {
+    throw signal?.aborted ? reason() : error;
+  }
 
   if (!response.ok) {
     throw new Error(`${provider} transcription failed: HTTP ${response.status} ${await response.text()}`);

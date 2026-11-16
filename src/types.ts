@@ -64,4 +64,12 @@ export interface TranscribeOptions extends AuthOptions {
   whisperPath?: string;
   /** Called with human-readable progress lines. */
   onProgress?: (message: string) => void;
+  /** Cancel the run: in-flight yt-dlp, whisper.cpp and upload steps are stopped. */
+  signal?: AbortSignal;
+  /**
+   * Give up on any single network step (a yt-dlp call or a hosted upload)
+   * that takes longer than this, with a TimeoutError. Local Whisper is CPU
+   * work, not a stalled request, so it is never cut off. Default: no limit.
+   */
+  timeoutMs?: number;
 }

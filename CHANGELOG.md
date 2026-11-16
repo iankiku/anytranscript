@@ -38,10 +38,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   limit, spacing between jobs for the same site, a site-wide back-off after a
   rate limit, retries with jittered exponential backoff, and clean abort.
   It is the groundwork for bulk transcription.
+- `signal` and `timeoutMs` options on `transcribe()`. An `AbortSignal` stops
+  in-flight yt-dlp, whisper.cpp and upload steps; `timeoutMs` fails any single
+  network step that runs longer with a `TimeoutError`. Local Whisper is never
+  cut off by the timeout.
+- `isRetryable()`, `isRateLimited()` and `siteKey()`: the rules for which
+  failures are worth another attempt, for callers running their own loops.
 
 ### Changed
 
 - `-o <file>` now ends the file with a newline, like stdout already did.
+- Local whisper.cpp runs now queue one at a time within a process, since
+  each already uses every core. `ANYTRANSCRIPT_WHISPER_JOBS` raises the limit.
+
+### Fixed
+
+- Running several transcriptions at once on a fresh machine could start
+  duplicate downloads of yt-dlp or a Whisper model into the same partial
+  file. Concurrent callers now share one download, and each process writes
+  its own partial file.
+- Two local Whisper runs started in the same millisecond could read each
+  other's output file.
+- A caption request that timed out or was cancelled fell through to a full
+  Whisper run instead of stopping.
 
 ## [1.0.2] - 2026-10-19
 

@@ -40,8 +40,11 @@ export async function transcribe(url: string, options: TranscribeOptions = {}): 
     ytdlpPath,
     whisperPath,
     onProgress = () => {},
+    signal,
+    timeoutMs,
     ...auth
   } = options;
+  const limits = { signal, timeoutMs };
 
   const workdir = requestedWorkdir ?? (await mkdtemp(join(tmpdir(), "anytranscript-")));
   const ownsWorkdir = !requestedWorkdir;
@@ -51,13 +54,15 @@ export async function transcribe(url: string, options: TranscribeOptions = {}): 
 
   try {
     const bin = await resolveYtDlp(ytdlpPath, onProgress);
-    const info = await getInfo(bin, url, auth);
+    signal?.throwIfAborted();
+    const info = await getInfo(bin, url, auth, limits);
     onProgress(`${info.extractor}: "${info.title}"${info.uploader ? ` (${info.uploader})` : ""}`);
 
     if (!whisperOnly) {
       onProgress("checking for existing captions...");
       const vttPath = await fetchCaptions(bin, url, workdir, lang, {
         ...auth,
+        ...limits,
         captionsOnly,
         onProgress,
       });
@@ -76,13 +81,13 @@ export async function transcribe(url: string, options: TranscribeOptions = {}): 
     const engine = await selectBackend(backend, whisperPath);
     onProgress(`no captions available — downloading audio and transcribing (${engine}, ${model})...`);
 
-    const audioPath = await downloadAudio(bin, url, workdir, engine === "local" ? "wav16" : "mp3", auth);
+    const audioPath = await downloadAudio(bin, url, workdir, engine === "local" ? "wav16" : "mp3", auth, limits);
     media.push(audioPath);
 
     const result =
       engine === "local"
-        ? await transcribeLocal(audioPath, { model, lang, binary: whisperPath, onProgress })
-        : await transcribeHosted(audioPath, engine, { lang });
+        ? await transcribeLocal(audioPath, { model, lang, binary: whisperPath, onProgress, signal })
+        : await transcribeHosted(audioPath, engine, { lang, ...limits });
 
     onProgress(`done via ${engine}, ${result.text.length} chars.`);
     return { ...result, source: "whisper", info };

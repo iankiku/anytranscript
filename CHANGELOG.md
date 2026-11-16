@@ -44,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cut off by the timeout.
 - `isRetryable()`, `isRateLimited()` and `siteKey()`: the rules for which
   failures are worth another attempt, for callers running their own loops.
+- `transcribeMany()` in the library: transcribe a list of URLs into a folder,
+  one file per video in any export format, with `index.csv` and `failed.txt`.
+  Each finished video is recorded in `manifest.jsonl` straight away, so
+  running it again skips what already finished, even after a crash.
 
 ### Changed
 

@@ -6,7 +6,8 @@
   "license": "MIT",
   "author": "Ian Kiku <iankiku@gmail.com>",
   "bin": {
-    "anytranscript": "dist/cli.js"
+    "anytranscript": "dist/cli.js",
+    "ant": "dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

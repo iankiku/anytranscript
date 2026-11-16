@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
- * CLI: anytranscript <url> — Instagram, TikTok, YouTube, and anything else
- * yt-dlp reaches.
+ * CLI: ant <url> (or anytranscript <url>) — Instagram, TikTok, YouTube, and
+ * anything else yt-dlp reaches.
  */
 
 import { realpathSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
+import { formatFromPath, formatTranscript, OUTPUT_FORMATS, type OutputFormat } from "./format.js";
 import { NoCaptionsError, transcribe } from "./transcribe.js";
 import type { ModelSize, WhisperBackend } from "./types.js";
 
@@ -15,14 +16,17 @@ const MODELS: ModelSize[] = ["tiny", "base", "small", "medium", "large-v3"];
 const BACKENDS: WhisperBackend[] = ["auto", "local", "openai", "groq"];
 
 const HELP = `
-  anytranscript <url>
+  ant <url> [options]        (anytranscript <url> works too)
 
   Extract a text transcript from an Instagram, TikTok, or YouTube video URL.
   Uses the platform's own captions when they exist; otherwise downloads the
   audio and transcribes it with Whisper.
 
   Options
-    -o, --out <file>          Write the transcript here (default: stdout)
+    -o, --out <file>          Write the transcript here (default: stdout).
+                              The extension picks the format: .md .csv .srt ...
+    -f, --format <fmt>        ${OUTPUT_FORMATS.join(", ")} (default: txt)
+    -t, --timestamps          txt only: one "[mm:ss] text" line per segment
         --json <file>         Also write timestamped segments as JSON
         --lang <code>         Caption/transcription language (default: en)
         --model <size>        Whisper model: ${MODELS.join(", ")} (default: small)
@@ -45,10 +49,21 @@ const HELP = `
     openai  api.openai.com                            (needs OPENAI_API_KEY)
     groq    api.groq.com                              (needs GROQ_API_KEY)
 
+  Formats
+    txt     plain text, or timestamped lines with -t
+    md      Markdown notes: title, source, timestamped paragraphs
+    csv     start, end, timestamp, text — one row per segment
+    json    the full result: text, segments, source, video info
+    srt     SubRip subtitles
+    vtt     WebVTT subtitles
+
   Examples
-    anytranscript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-    anytranscript "https://www.tiktok.com/@user/video/123" -o out.txt
-    anytranscript "<reel-url>" --cookies-from-browser chrome --model medium
+    ant "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    ant "https://www.tiktok.com/@user/video/123" -o out.txt
+    ant "<url>" -t                          # timestamped lines on stdout
+    ant "<url>" -o notes.md                 # Markdown, picked from the extension
+    ant "<url>" -f csv > segments.csv
+    ant "<reel-url>" --cookies-from-browser chrome --model medium
 `;
 
 async function version(): Promise<string> {
@@ -71,6 +86,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     allowPositionals: true,
     options: {
       out: { type: "string", short: "o" },
+      format: { type: "string", short: "f" },
+      timestamps: { type: "boolean", short: "t" },
       json: { type: "string" },
       lang: { type: "string" },
       model: { type: "string" },
@@ -102,6 +119,10 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     return 1;
   }
 
+  const format: OutputFormat = values.format
+    ? oneOf(values.format, [...OUTPUT_FORMATS], "format", "txt")
+    : (values.out && formatFromPath(values.out)) || "txt";
+
   const log = (message: string) => {
     if (!values.quiet) process.stderr.write(`[anytranscript] ${message}\n`);
   };
@@ -119,11 +140,12 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     onProgress: log,
   });
 
+  const rendered = formatTranscript(result, format, { timestamps: values.timestamps ?? false });
   if (values.out) {
-    await writeFile(values.out, result.text, "utf8");
-    log(`wrote transcript to ${values.out}`);
+    await writeFile(values.out, rendered, "utf8");
+    log(`wrote ${format} transcript to ${values.out}`);
   } else {
-    process.stdout.write(`${result.text}\n`);
+    process.stdout.write(rendered);
   }
 
   if (values.json) {

@@ -162,10 +162,13 @@ Nothing to set up. Best for one-off use and for agents in throwaway sandboxes.
 
 ```bash
 npm install -g @iankiku/anytranscript
-anytranscript "<url>"
+ant "<url>"
 ```
 
-The binary is called `anytranscript`, without the scope.
+This installs two names for the same command: `ant` for typing, and
+`anytranscript` for scripts that want to be self-explanatory. Apache Ant, the
+Java build tool, also installs an `ant` command; if you have both, whichever
+comes first on your `PATH` wins, so use `anytranscript` there.
 
 ### Add it to a project
 
@@ -209,12 +212,14 @@ Both are cached, so it happens once. Already have yt-dlp? Point
 ## CLI
 
 ```bash
-anytranscript <url> [options]
+ant <url> [options]          # same as: anytranscript <url> [options]
 ```
 
 | Option | Effect |
 |---|---|
-| `-o, --out <file>` | Write the transcript here instead of stdout |
+| `-o, --out <file>` | Write the transcript here instead of stdout. The extension picks the format |
+| `-f, --format <fmt>` | `txt` (default) · `md` · `csv` · `json` · `srt` · `vtt` |
+| `-t, --timestamps` | `txt` only: one `[mm:ss] text` line per segment |
 | `--json <file>` | Also write timestamped segments as JSON |
 | `--lang <code>` | Caption/transcription language (default `en`) |
 | `--model <size>` | `tiny` · `base` · `small` (default) · `medium` · `large-v3` |
@@ -230,17 +235,38 @@ anytranscript <url> [options]
 
 ```bash
 # Captions if the platform has them, otherwise Whisper
-anytranscript "https://www.instagram.com/reel/XXXXXXX/"
+ant "https://www.instagram.com/reel/XXXXXXX/"
+
+# Timestamped lines: [00:05] the cool thing about these guys...
+ant "<url>" -t
+
+# Markdown notes, a spreadsheet, or subtitles — the extension decides
+ant "<url>" -o notes.md
+ant "<url>" -o segments.csv
+ant "<url>" -o captions.srt
 
 # Save text and timed segments together
-anytranscript "<url>" -o transcript.txt --json segments.json
+ant "<url>" -o transcript.txt --json segments.json
 
 # Instagram login-walls most reels — borrow a logged-in session
-anytranscript "<reel-url>" --cookies-from-browser chrome
+ant "<reel-url>" --cookies-from-browser chrome
 
 # Bigger model when the default mis-hears something
-anytranscript "<url>" --model medium
+ant "<url>" --model medium
 ```
+
+### Export formats
+
+Every format is built from the same timed segments, so captions and Whisper
+output export the same way.
+
+| Format | What you get |
+|---|---|
+| `txt` | The transcript as one paragraph. With `-t`, one `[mm:ss] text` line per segment |
+| `md` | Title, source, channel and duration, then paragraphs every ~30 s headed by a timestamp. On YouTube each timestamp links to that moment in the video |
+| `csv` | `start,end,timestamp,text`, one row per segment, seconds plus a readable time. Cells that would run as a spreadsheet formula (`=`, `+`, `-`, `@`) get a leading `'` |
+| `json` | The full result: `text`, `segments`, `source`, `language`, `info` |
+| `srt` / `vtt` | Subtitle files any video player or editor opens |
 
 ### Models
 
@@ -353,9 +379,23 @@ Every CLI flag has an option counterpart: `lang`, `model`, `backend`,
 Throws `NoCaptionsError` when `captionsOnly` finds none, and `CommandError`
 (carrying `stderr`) when yt-dlp or whisper.cpp exits non-zero.
 
+### `formatTranscript(transcript, format, options?)`
+
+Renders a `Transcript` as any of the CLI's export formats — `"txt"`, `"md"`,
+`"csv"`, `"json"`, `"srt"` or `"vtt"` — and returns the file contents as a
+string. `options.timestamps` gives timestamped `txt` lines;
+`options.paragraphSeconds` sets the Markdown paragraph length (default 30).
+
+```ts
+import { formatTranscript, transcribe } from "@iankiku/anytranscript";
+
+const transcript = await transcribe(url);
+await writeFile("notes.md", formatTranscript(transcript, "md"));
+```
+
 Also exported: `vttToText`, `vttToSegments` (the dedup logic, if you have your
-own `.vtt`), `resolveYtDlp`, `resolveLocalWhisper`, `ensureModel`,
-`selectBackend`.
+own `.vtt`), `formatFromPath`, `formatTimestamp`, `csvField`, `resolveYtDlp`,
+`resolveLocalWhisper`, `ensureModel`, `selectBackend`.
 
 ---
 

@@ -9,6 +9,8 @@
 
 export { transcribe, NoCaptionsError } from "./transcribe.js";
 export { vttToText, vttToSegments } from "./vtt.js";
+export { formatTranscript, formatFromPath, formatTimestamp, csvField, OUTPUT_FORMATS } from "./format.js";
+export type { FormatOptions, OutputFormat } from "./format.js";
 export { resolveYtDlp } from "./ytdlp.js";
 export { resolveLocalWhisper, ensureModel, selectBackend } from "./whisper.js";
 export { CommandError } from "./proc.js";

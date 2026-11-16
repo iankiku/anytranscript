@@ -23,6 +23,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A short command, `ant`. `ant <url>` does exactly what `anytranscript <url>`
+  does; both names are installed, so existing scripts keep working.
+- Export formats. `-f, --format` takes `txt`, `md`, `csv`, `json`, `srt` or
+  `vtt`, and `-o notes.md` (or `.csv`, `.srt`...) picks the format from the
+  extension. Markdown has a metadata header and timestamped paragraphs that
+  link to the moment in the video on YouTube; CSV has one row per segment.
+- `-t, --timestamps` prints one `[mm:ss] text` line per segment instead of a
+  single paragraph.
+- `formatTranscript()` in the library, for the same formats from code.
+
+### Changed
+
+- `-o <file>` now ends the file with a newline, like stdout already did.
+
 ## [1.0.2] - 2026-10-19
 
 ### Fixed

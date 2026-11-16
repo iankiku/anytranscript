@@ -2,9 +2,10 @@
 
 # anytranscript
 
-**Any social video URL → text.**
+**Video links in, transcripts you can research with out.**
 
-Platform captions when they exist. Local Whisper when they don't. One command either way.
+One link or a thousand. Timestamps on every line. Saved as notes, a spreadsheet or subtitles.<br>
+Built for you in the terminal and for your AI agent as a tool.
 
 <br>
 
@@ -58,14 +59,38 @@ which one you get is a property of the platform rather than a flag you set.
 
 ## Why this exists
 
-yt-dlp already does the hard part: reaching the video and pulling down a
-caption track or an audio stream. This is a wrapper around it, and makes no
-claim otherwise.
+Research runs on what people said: talks, interviews, podcasts, demos,
+earnings calls. Most of it lives in video, and video is hard to search, quote
+or summarize. Getting the words out should take one step. It used to take
+five:
 
-What it adds is the three things you have to build *after* yt-dlp hands you a
-file, and that every caller otherwise rebuilds badly.
+1. Paste one link into a transcription site, wait, copy the text out.
+2. Repeat for the next 40 links.
+3. Lose the timestamps, so a quote can't be checked against the video.
+4. Find that Instagram and TikTok have no captions, and reach for another tool.
+5. Hand the job to an AI agent, then watch it improvise shell commands and
+   hunt for where the output went.
 
-### 1. Auto-captions are 3× duplicated, and it isn't obvious
+anytranscript makes it one step:
+
+- **A link or a list in, transcripts out.** Every line has a timestamp. Save
+  as Markdown notes, CSV, an Excel or Google Sheets file, or subtitles.
+- **Captions first, speech recognition second.** When the platform has
+  captions, they're used. When it doesn't, the audio is transcribed on your
+  own machine: free, and nothing is uploaded unless you pick a hosted engine.
+- **Long lists finish.** Bulk runs retry temporary errors, slow down when a
+  site pushes back, and pick up where they stopped after a crash.
+- **Agents call it as a tool.** Each call shows the link it was given, what
+  came back, and the full path of every file it saved. You can see what the
+  agent did and open the results yourself.
+
+### What it adds on top of yt-dlp
+
+[yt-dlp](https://github.com/yt-dlp/yt-dlp) does the hard part of reaching the
+video and pulling down a caption track or the audio. anytranscript builds on
+it and adds the work that comes after, which every caller otherwise rebuilds.
+
+#### 1. Auto-captions are 3× duplicated, and it isn't obvious
 
 YouTube's auto-generated captions fake a scrolling display by re-emitting each
 line across two or three consecutive cues. Strip the timing lines the obvious
@@ -90,24 +115,31 @@ an LLM and you pay triple for a transcript that reads like a stutter. Collapsing
 it is the single highest-value thing in this package, and it's the part people
 don't know they need until they read their own output closely.
 
-### 2. The caption-vs-Whisper branch is per-platform, not per-request
+#### 2. Whether there are captions depends on the platform
 
 Instagram and TikTok essentially never expose real captions through yt-dlp.
 YouTube usually does. So "get me a transcript" is two entirely different
 pipelines, and you don't know which one you're in until you've already asked.
 This picks for you and falls through automatically.
 
-### 3. Everything downstream of "no captions"
+#### 3. Everything after "no captions"
 
 Audio extraction → 16 kHz mono WAV → acquiring Whisper model weights →
 invoking the model → parsing its output into timed segments. yt-dlp does none
 of that.
 
+#### 4. Lists, files and agents
+
+A queue that survives a list of hundreds, export formats people open
+directly, and an MCP server so agents get results as tool calls instead of
+terminal output.
+
 ### What it deliberately doesn't do
 
-It is not a better downloader, it doesn't work around rate limits or logins
-(pass cookies for that), and it doesn't reimplement any extractor. When a site
-breaks, that's yt-dlp's surface, and updating yt-dlp is the fix.
+It isn't a better downloader, and it doesn't reimplement any site. It doesn't
+get around logins or blocks: pass cookies for sites that need a login, and
+bulk runs slow down when a site pushes back rather than trying to evade it.
+When a site breaks, that's yt-dlp's job, and updating yt-dlp is the fix.
 
 ---
 

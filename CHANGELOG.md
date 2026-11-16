@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `-t, --timestamps` prints one `[mm:ss] text` line per segment instead of a
   single paragraph.
 - `formatTranscript()` in the library, for the same formats from code.
+- `runTasks()` in the library: a small job scheduler with a concurrency
+  limit, spacing between jobs for the same site, a site-wide back-off after a
+  rate limit, retries with jittered exponential backoff, and clean abort.
+  It is the groundwork for bulk transcription.
 
 ### Changed
 

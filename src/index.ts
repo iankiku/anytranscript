@@ -13,6 +13,8 @@ export { formatTranscript, formatFromPath, formatTimestamp, csvField, OUTPUT_FOR
 export type { FormatOptions, OutputFormat } from "./format.js";
 export { resolveYtDlp } from "./ytdlp.js";
 export { resolveLocalWhisper, ensureModel, selectBackend } from "./whisper.js";
+export { runTasks, createLimiter } from "./scheduler.js";
+export type { SchedulerEvent, SchedulerOptions, Task, TaskOutcome } from "./scheduler.js";
 export { CommandError } from "./proc.js";
 export type {
   AuthOptions,

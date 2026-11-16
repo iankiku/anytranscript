@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `vtt`, and `-o notes.md` (or `.csv`, `.srt`...) picks the format from the
   extension. Markdown has a metadata header and timestamped paragraphs that
   link to the moment in the video on YouTube; CSV has one row per segment.
+- Excel export. `-o talk.xlsx` (or `-f xlsx`) writes a workbook with a
+  Transcript tab, one row per segment, and a Video tab. It opens in Excel and
+  imports into Google Sheets. Bulk runs with `-f xlsx` also write
+  `index.xlsx`. Built in, with no new dependencies.
 - `-t, --timestamps` prints one `[mm:ss] text` line per segment instead of a
   single paragraph.
 - `formatTranscript()` in the library, for the same formats from code.

@@ -78,3 +78,12 @@ test("end to end: a bulk run from a file, then a resumed re-run", async () => {
   assert.equal(again.stdout, first.stdout, "skipped videos are still listed");
   await rm(dir, { recursive: true, force: true });
 });
+
+test("end to end: -o picks xlsx from the extension and writes a workbook", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ant-xlsx-"));
+  const { code } = await ant(["https://www.youtube.com/watch?v=abc", "-q", "-o", "talk.xlsx"], dir);
+  assert.equal(code, 0);
+  const head = (await readFile(join(dir, "talk.xlsx"))).subarray(0, 2).toString();
+  assert.equal(head, "PK");
+  await rm(dir, { recursive: true, force: true });
+});

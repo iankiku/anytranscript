@@ -237,3 +237,12 @@ test("parseUrlList skips blanks and comments and allows a note after the URL", (
     "https://b.com/2",
   ]);
 });
+
+test("an xlsx run writes a workbook per video plus index.xlsx", async () => {
+  const outDir = join(root, "xlsx");
+  await transcribeMany(["https://www.youtube.com/watch?v=aaa"], { outDir, format: "xlsx", ...FAST, transcriber: fakeSite().transcriber });
+  const files = (await readdir(outDir)).sort();
+  assert.deepEqual(files, ["index.csv", "index.xlsx", "manifest.jsonl", "video-aaa-aaa.xlsx"]);
+  const head = (await readFile(join(outDir, "video-aaa-aaa.xlsx"))).subarray(0, 4);
+  assert.deepEqual([...head], [0x50, 0x4b, 0x03, 0x04], "a zip, not text");
+});

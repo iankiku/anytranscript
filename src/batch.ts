@@ -11,8 +11,9 @@ import { createHash, randomUUID } from "node:crypto";
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { exists } from "./cache.js";
-import { csvRow, type FormatOptions, formatTranscript, type OutputFormat } from "./format.js";
+import { csvRow, type FormatOptions, type OutputFormat, renderTranscript } from "./format.js";
 import { runTasks } from "./scheduler.js";
+import { buildWorkbook } from "./xlsx.js";
 import { isRateLimited, isRetryable, siteKey } from "./retry.js";
 import { transcribe } from "./transcribe.js";
 import type { Transcript, TranscribeOptions } from "./types.js";
@@ -149,9 +150,9 @@ function recordToItem(record: ManifestRecord, outDir: string): BatchItem {
  * The temp name is unique because the same video can arrive under two URLs
  * (youtu.be and youtube.com) and be written twice at once.
  */
-async function writeAtomic(path: string, contents: string): Promise<void> {
+async function writeAtomic(path: string, contents: string | Uint8Array): Promise<void> {
   const partial = `${path}.${randomUUID().slice(0, 8)}.part`;
-  await writeFile(partial, contents, "utf8");
+  await writeFile(partial, contents);
   await rename(partial, path);
 }
 
@@ -239,7 +240,7 @@ export async function transcribeMany(urls: string[], options: BatchOptions): Pro
           });
           jobSignal.throwIfAborted();
           const file = join(outDir, `${transcriptName(transcript, url)}.${format}`);
-          await writeAtomic(file, formatTranscript(transcript, format, formatOptions));
+          await writeAtomic(file, renderTranscript(transcript, format, formatOptions));
           await settle(i, {
             url,
             status: "ok",
@@ -294,21 +295,33 @@ export async function transcribeMany(urls: string[], options: BatchOptions): Pro
   for (const item of items) folder.set(item.url, item);
 
   const indexFile = join(outDir, "index.csv");
-  const rows = [...folder.values()].map((item) =>
-    csvRow([
-      item.url,
-      item.status,
-      item.title,
-      item.uploader,
-      item.duration,
-      item.source,
-      item.language,
-      item.file ? basename(item.file) : undefined,
-      item.attempts,
-      item.error,
-    ]),
-  );
+  const indexCells = [...folder.values()].map((item) => [
+    item.url,
+    item.status,
+    item.title,
+    item.uploader,
+    item.duration,
+    item.source,
+    item.language,
+    item.file ? basename(item.file) : undefined,
+    item.attempts,
+    item.error,
+  ]);
+  const rows = indexCells.map(csvRow);
   await writeAtomic(indexFile, `${[INDEX_HEADER.join(","), ...rows].join("\n")}\n`);
+  if (format === "xlsx") {
+    // Spreadsheet users get the summary as a workbook too.
+    await writeAtomic(
+      join(outDir, "index.xlsx"),
+      buildWorkbook([
+        {
+          name: "Videos",
+          widths: [45, 12, 50, 20, 10, 10, 10, 50, 9, 50],
+          rows: [INDEX_HEADER, ...indexCells],
+        },
+      ]),
+    );
+  }
 
   const failedPath = join(outDir, "failed.txt");
   const failed = [...folder.values()].filter((item) => item.status === "failed" || item.status === "interrupted");

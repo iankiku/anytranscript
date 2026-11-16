@@ -218,7 +218,7 @@ ant <url> [options]          # same as: anytranscript <url> [options]
 | Option | Effect |
 |---|---|
 | `-o, --out <file>` | Write the transcript here instead of stdout. The extension picks the format |
-| `-f, --format <fmt>` | `txt` (default) · `md` · `csv` · `json` · `srt` · `vtt` |
+| `-f, --format <fmt>` | `txt` (default) · `md` · `csv` · `xlsx` · `json` · `srt` · `vtt` |
 | `-t, --timestamps` | `txt` only: one `[mm:ss] text` line per segment |
 | `--json <file>` | Also write timestamped segments as JSON |
 | `--lang <code>` | Caption/transcription language (default `en`) |
@@ -250,6 +250,7 @@ ant "<url>" -t
 # Markdown notes, a spreadsheet, or subtitles — the extension decides
 ant "<url>" -o notes.md
 ant "<url>" -o segments.csv
+ant "<url>" -o talk.xlsx                # Excel, or import into Google Sheets
 ant "<url>" -o captions.srt
 
 # Save text and timed segments together
@@ -279,6 +280,7 @@ title and id (`me-at-the-zoo-jNQXAC9IVRw.md`). Alongside them:
 | File | What's in it |
 |---|---|
 | `index.csv` | One row per URL ever run into this folder: status, title, channel, duration, source, file, attempts, error |
+| `index.xlsx` | The same summary as a workbook, when the run uses `-f xlsx` |
 | `failed.txt` | URLs that failed or didn't finish, ready for `ant -i notes/failed.txt` |
 | `manifest.jsonl` | The run log that makes resuming work |
 
@@ -326,6 +328,7 @@ output export the same way.
 | `txt` | The transcript as one paragraph. With `-t`, one `[mm:ss] text` line per segment |
 | `md` | Title, source, channel and duration, then paragraphs every ~30 s headed by a timestamp. On YouTube each timestamp links to that moment in the video |
 | `csv` | `start,end,timestamp,text`, one row per segment, seconds plus a readable time. Cells that would run as a spreadsheet formula (`=`, `+`, `-`, `@`) get a leading `'` |
+| `xlsx` | An Excel workbook: a *Transcript* tab (start, end, timestamp, text, one row per segment, header frozen) and a *Video* tab (title, link, channel, duration). Opens in Excel, Numbers and LibreOffice; in Google Sheets use **File → Import** or drop it into Drive. Text is stored as text, never as a formula |
 | `json` | The full result: `text`, `segments`, `source`, `language`, `info` |
 | `srt` / `vtt` | Subtitle files any video player or editor opens |
 
@@ -474,9 +477,11 @@ handling.
 
 ### `formatTranscript(transcript, format, options?)`
 
-Renders a `Transcript` as any of the CLI's export formats — `"txt"`, `"md"`,
+Renders a `Transcript` as any of the text formats — `"txt"`, `"md"`,
 `"csv"`, `"json"`, `"srt"` or `"vtt"` — and returns the file contents as a
-string. `options.timestamps` gives timestamped `txt` lines;
+string. `renderTranscript()` takes `"xlsx"` too and returns a `Buffer` for
+it; `transcriptToXlsx()` and `buildWorkbook(sheets)` build workbooks
+directly. `options.timestamps` gives timestamped `txt` lines;
 `options.paragraphSeconds` sets the Markdown paragraph length (default 30).
 
 ```ts

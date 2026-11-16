@@ -49,6 +49,7 @@ test("formatFromPath infers the format from the file extension", () => {
   assert.equal(formatFromPath("talk.vtt"), "vtt");
   assert.equal(formatFromPath("talk.json"), "json");
   assert.equal(formatFromPath("talk.txt"), "txt");
+  assert.equal(formatFromPath("talk.XLSX"), "xlsx");
   assert.equal(formatFromPath("talk"), undefined);
   assert.equal(formatFromPath("talk.docx"), undefined);
 });

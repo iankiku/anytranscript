@@ -10,7 +10,7 @@ import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { relative } from "node:path";
 import { type BatchEvent, parseUrlList, transcribeMany } from "./batch.js";
-import { formatFromPath, formatTranscript, OUTPUT_FORMATS, type OutputFormat } from "./format.js";
+import { formatFromPath, OUTPUT_FORMATS, type OutputFormat, renderTranscript } from "./format.js";
 import { NoCaptionsError, transcribe } from "./transcribe.js";
 import type { ModelSize, WhisperBackend } from "./types.js";
 
@@ -73,6 +73,7 @@ const HELP = `
     md      Markdown notes: title, source, timestamped paragraphs
     csv     start, end, timestamp, text — one row per segment
     json    the full result: text, segments, source, video info
+    xlsx    Excel workbook (opens in Google Sheets too): one row per segment
     srt     SubRip subtitles
     vtt     WebVTT subtitles
 
@@ -171,6 +172,10 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   const format: OutputFormat = values.format
     ? oneOf(values.format, [...OUTPUT_FORMATS], "format", "txt")
     : (values.out && formatFromPath(values.out)) || "txt";
+  const single = urls.length === 1 && !values.input;
+  if (single && format === "xlsx" && !values.out && process.stdout.isTTY) {
+    throw new Error("xlsx is a binary file, so it can't go to the terminal. Write it with -o transcript.xlsx");
+  }
 
   const log = (message: string) => {
     if (!values.quiet) process.stderr.write(`[anytranscript] ${message}\n`);
@@ -196,7 +201,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
 
   const result = await transcribe(urls[0]!, { ...shared, onProgress: log });
 
-  const rendered = formatTranscript(result, format, { timestamps: values.timestamps ?? false });
+  const rendered = renderTranscript(result, format, { timestamps: values.timestamps ?? false });
   if (values.out) {
     await writeFile(values.out, rendered, "utf8");
     log(`wrote ${format} transcript to ${values.out}`);

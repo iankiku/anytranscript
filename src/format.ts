@@ -8,8 +8,14 @@
 
 import { extname } from "node:path";
 import type { Segment, Transcript } from "./types.js";
+import { transcriptToXlsx } from "./xlsx.js";
 
-export const OUTPUT_FORMATS = ["txt", "md", "csv", "json", "srt", "vtt"] as const;
+/** Formats that come out as text, so they can go to stdout or a string. */
+export const TEXT_FORMATS = ["txt", "md", "csv", "json", "srt", "vtt"] as const;
+export type TextFormat = (typeof TEXT_FORMATS)[number];
+
+/** Every export format; `xlsx` is a binary Excel workbook. */
+export const OUTPUT_FORMATS = [...TEXT_FORMATS, "xlsx"] as const;
 export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
 
 export interface FormatOptions {
@@ -28,6 +34,7 @@ const EXTENSIONS: Record<string, OutputFormat> = {
   ".json": "json",
   ".srt": "srt",
   ".vtt": "vtt",
+  ".xlsx": "xlsx",
 };
 
 /** The format a file name implies, or undefined when the extension says nothing. */
@@ -152,10 +159,10 @@ function toVtt({ segments }: Transcript): string {
   return `${["WEBVTT", ...cues].join("\n\n")}\n`;
 }
 
-/** Render a transcript in one of the OUTPUT_FORMATS. */
+/** Render a transcript as text in one of the TEXT_FORMATS. */
 export function formatTranscript(
   transcript: Transcript,
-  format: OutputFormat,
+  format: TextFormat,
   options: FormatOptions = {},
 ): string {
   switch (format) {
@@ -172,4 +179,13 @@ export function formatTranscript(
     case "vtt":
       return toVtt(transcript);
   }
+}
+
+/** Render a transcript in any format: a string for text, a Buffer for `xlsx`. */
+export function renderTranscript(
+  transcript: Transcript,
+  format: OutputFormat,
+  options: FormatOptions = {},
+): string | Buffer {
+  return format === "xlsx" ? transcriptToXlsx(transcript) : formatTranscript(transcript, format, options);
 }

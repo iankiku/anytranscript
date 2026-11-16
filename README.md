@@ -499,11 +499,46 @@ own `.vtt`), `formatFromPath`, `formatTimestamp`, `csvField`, `resolveYtDlp`,
 
 ## MCP server
 
-Want `transcribe` as a typed tool call for Claude Code, Claude Desktop, or
-any other MCP client, instead of shelling out to this CLI? See
-[anytranscript-mcp](https://github.com/iankiku/anytranscript-mcp) — a
-separate package (`npx @iankiku/anytranscript-mcp`) so this library and CLI
-keep their zero-dependency build.
+`ant mcp` runs the same transcriber as an [MCP](https://modelcontextprotocol.io)
+server, so an agent calls it as a tool and gets back the text, the
+timestamps and the full path of any file it saved. It comes with the same
+install as the CLI and adds no dependencies.
+
+**Claude Code:**
+
+```bash
+claude mcp add anytranscript -- npx -y @iankiku/anytranscript mcp
+```
+
+**Claude Desktop, Cursor, or any other MCP client:**
+
+```json
+{
+  "mcpServers": {
+    "anytranscript": { "command": "npx", "args": ["-y", "@iankiku/anytranscript", "mcp"] }
+  }
+}
+```
+
+With the package installed globally, `"command": "ant", "args": ["mcp"]`
+starts faster.
+
+### Tools
+
+| Tool | What it does | Returns |
+|---|---|---|
+| `transcribe` | One video. Optionally saves it with `format` (into `outDir`, default `./transcripts`) or `saveAs` (an exact path) | `title`, `url`, `channel`, `duration`, `source`, `language`, `file` (full path or `null`), `transcript` (`[mm:ss]` lines) |
+| `transcribe_many` | A list of `urls` into `outDir`, one file per video in `format` (default `md`), with the same retries, spacing and resume as `ant -i` | `outDir`, `index` (index.csv), `failedList`, counts, and per URL: `status`, `title`, `file`, `error` |
+
+Both take `lang`, `model`, `backend`, `whisperOnly`, `captionsOnly`,
+`cookiesFromBrowser` and `timestamps`. `transcribe` takes
+`includeTranscript: false` to return only the file path, which saves tokens
+on long videos. `transcribe_many` also takes `concurrency`, `retries`,
+`delaySeconds` and `force`, sends a progress update per video, and stops
+when the client cancels the call.
+
+Relative paths are resolved from the folder the client starts the server
+in, usually the project you have open.
 
 ## How it's built
 

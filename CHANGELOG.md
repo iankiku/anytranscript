@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Transcript tab, one row per segment, and a Video tab. It opens in Excel and
   imports into Google Sheets. Bulk runs with `-f xlsx` also write
   `index.xlsx`. Built in, with no new dependencies.
+- `ant mcp` runs an MCP server with two tools, `transcribe` and
+  `transcribe_many`, so agents get the text, timestamps and saved file paths
+  as a tool result instead of running the CLI. It ships in the same package,
+  with no new dependencies.
 - `-t, --timestamps` prints one `[mm:ss] text` line per segment instead of a
   single paragraph.
 - `formatTranscript()` in the library, for the same formats from code.

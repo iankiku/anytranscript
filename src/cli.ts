@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { relative } from "node:path";
 import { type BatchEvent, parseUrlList, transcribeMany } from "./batch.js";
 import { formatFromPath, OUTPUT_FORMATS, type OutputFormat, renderTranscript } from "./format.js";
+import { serveMcp } from "./mcp.js";
 import { NoCaptionsError, transcribe } from "./transcribe.js";
 import type { ModelSize, WhisperBackend } from "./types.js";
 
@@ -21,6 +22,7 @@ const HELP = `
   ant <url> [options]          (anytranscript <url> works too)
   ant <url> <url>... [options]  many videos, one file each
   ant -i urls.txt [options]     URLs from a file, one per line (- for stdin)
+  ant mcp                       run as an MCP server, for AI agents (stdio)
 
   Extract a text transcript from an Instagram, TikTok, or YouTube video URL.
   Uses the platform's own captions when they exist; otherwise downloads the
@@ -119,6 +121,11 @@ function oneOf<T extends string>(value: string | undefined, allowed: T[], flag: 
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
+  if (argv[0] === "mcp") {
+    await serveMcp();
+    return 0;
+  }
+
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,

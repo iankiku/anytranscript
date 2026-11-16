@@ -47,6 +47,16 @@ jobs:
           fi
           echo "version $PKG confirmed"
 
+      - name: Check the Claude Code plugin names this version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          PKG="$(node -p "require('./package.json').version")"
+          PLUGIN="$(node -p "require('./plugin/.claude-plugin/plugin.json').version")"
+          if [ "$PLUGIN" != "$PKG" ]; then
+            echo "::error::plugin/.claude-plugin/plugin.json is $PLUGIN, package.json is $PKG"
+            exit 1
+          fi
+
       - name: Check the changelog has an entry for this version
         if: startsWith(github.ref, 'refs/tags/')
         run: |

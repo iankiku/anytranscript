@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "anytranscript": {
+      "command": "npx",
+      "args": ["-y", "@iankiku/anytranscript@^1.1.0", "mcp"]
+    }
+  }
+}

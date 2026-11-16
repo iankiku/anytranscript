@@ -10,7 +10,7 @@ Platform captions when they exist. Local Whisper when they don't. One command ei
 
 [![npm](https://img.shields.io/npm/v/@iankiku/anytranscript?style=flat-square&color=CC3F3F&label=npm)](https://www.npmjs.com/package/@iankiku/anytranscript) [![downloads](https://img.shields.io/npm/dm/@iankiku/anytranscript?style=flat-square&color=5A6370&label=downloads)](https://www.npmjs.com/package/@iankiku/anytranscript) [![CI](https://img.shields.io/github/actions/workflow/status/iankiku/anytranscript/ci.yml?style=flat-square&color=5A6370&label=CI)](https://github.com/iankiku/anytranscript/actions/workflows/ci.yml) [![node](https://img.shields.io/node/v/@iankiku/anytranscript?style=flat-square&color=5A6370&label=node)](https://nodejs.org) [![deps](https://img.shields.io/badge/runtime%20deps-0-5A6370?style=flat-square)](#how-its-built) [![license](https://img.shields.io/badge/license-MIT-5A6370?style=flat-square)](LICENSE)
 
-[Install](#install) · [How it works](#how-it-works) · [CLI](#cli) · [For agents](#for-agents) · [Library](#library) · [MCP server](#mcp-server) · [How it&#39;s built](#how-its-built)
+[Install](#install) · [How it works](#how-it-works) · [CLI](#cli) · [For agents](#for-agents) · [MCP server](#mcp-server) · [Library](#library) · [How it&#39;s built](#how-its-built)
 
 </div>
 
@@ -164,6 +164,10 @@ Nothing to set up. Best for one-off use and for agents in throwaway sandboxes.
 npm install -g @iankiku/anytranscript
 ant "<url>"
 ```
+
+The same install also gives agents an MCP server: `ant mcp` (see
+[MCP server](#mcp-server)). In Claude Code, the
+[plugin](#1-claude-code-plugin) sets that up for you.
 
 This installs two names for the same command: `ant` for typing, and
 `anytranscript` for scripts that want to be self-explanatory. Apache Ant, the
@@ -351,7 +355,31 @@ the weights from Hugging Face and caches them.
 
 ## For agents
 
-This CLI is built to be called by an agent, not just a human. The contract:
+There are three ways for an agent to use anytranscript. Pick the first one
+your agent supports.
+
+### 1. Claude Code plugin
+
+```bash
+claude plugin marketplace add iankiku/anytranscript
+claude plugin install anytranscript@anytranscript
+```
+
+This adds the two [MCP tools](#mcp-server) and a skill that tells Claude when
+to use them, how to read the result, and what to do when a site asks for a
+login. Then ask in plain words: *"Transcribe the videos in links.txt into
+Excel files and tell me which ones failed."* Claude calls the tools directly,
+with no terminal, and reports the saved file paths.
+
+### 2. Any MCP client
+
+Point it at `npx -y @iankiku/anytranscript mcp` (setup for each client is in
+[MCP server](#mcp-server)). The tools return the transcript with timestamps,
+the video's details, and the full path of every file saved.
+
+### 3. The command line
+
+Any agent that can run a shell command can use the CLI. The contract:
 
 **Streams are separated.** The transcript goes to **stdout**, and progress and
 diagnostics go to **stderr**. So `2>/dev/null` always yields clean text with
@@ -386,6 +414,13 @@ timestamp, or window into a long video without re-running anything:
 ]
 ```
 
+**Saving files for an agent to read later:**
+
+```bash
+ant "<url>" -o notes/talk.md -q          # one video; the path is known up front
+ant -i urls.txt -d notes -f md -q        # many; stdout lists every file path
+```
+
 **Recommended agent invocation:**
 
 ```bash
@@ -396,6 +431,13 @@ Then read stdout for the text, `/tmp/segments.json` for timing, and only open
 `/tmp/progress.log` if the exit code was non-zero.
 
 ### Notes for agents specifically
+
+These apply to every option above. The plugin's skill
+([`plugin/skills/anytranscript/SKILL.md`](plugin/skills/anytranscript/SKILL.md))
+says the same for Claude.
+
+- **Check `source`.** `captions` is the platform's own text. `whisper` is
+  speech recognition, so names and numbers can be misheard.
 
 - **Instagram will usually fail without cookies.** On a login/private-content
   error for an `instagram.com` URL, retry once with

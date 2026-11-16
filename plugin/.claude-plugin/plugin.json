@@ -1,0 +1,10 @@
+{
+  "name": "anytranscript",
+  "version": "1.1.0",
+  "description": "Video transcripts with timestamps, as tools your agent can call. Saves Markdown, CSV, Excel or subtitle files and returns their paths. Handles one video or a whole list.",
+  "author": { "name": "Ian Kiku", "url": "https://github.com/iankiku" },
+  "homepage": "https://github.com/iankiku/anytranscript#readme",
+  "repository": "https://github.com/iankiku/anytranscript",
+  "license": "MIT",
+  "keywords": ["transcript", "video", "youtube", "tiktok", "instagram", "whisper", "captions", "mcp"]
+}

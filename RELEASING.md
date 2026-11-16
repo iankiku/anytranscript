@@ -18,10 +18,14 @@ exact commit and workflow run that produced it.
 # 1. Move the Unreleased entries into a new version section, dated today.
 $EDITOR CHANGELOG.md
 
-# 2. Bump the version. This commits and tags in one step.
+# 2. Bump the version in plugin/.claude-plugin/plugin.json and the
+#    version range in plugin/.mcp.json to match. `npm test` fails until they do.
+$EDITOR plugin/.claude-plugin/plugin.json plugin/.mcp.json
+
+# 3. Bump the version. This commits and tags in one step.
 npm version patch        # or minor / major
 
-# 3. Push the commit and the tag.
+# 4. Push the commit and the tag.
 git push --follow-tags
 ```
 

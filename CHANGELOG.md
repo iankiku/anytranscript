@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `transcribe_many`, so agents get the text, timestamps and saved file paths
   as a tool result instead of running the CLI. It ships in the same package,
   with no new dependencies.
+- A Claude Code plugin: `claude plugin marketplace add iankiku/anytranscript`
+  then `claude plugin install anytranscript@anytranscript`. It adds the MCP
+  tools and a skill that tells Claude when and how to use them.
 - `-t, --timestamps` prints one `[mm:ss] text` line per segment instead of a
   single paragraph.
 - `formatTranscript()` in the library, for the same formats from code.

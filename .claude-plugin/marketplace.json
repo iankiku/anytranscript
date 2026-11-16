@@ -1,0 +1,16 @@
+{
+  "name": "anytranscript",
+  "owner": { "name": "Ian Kiku", "url": "https://github.com/iankiku" },
+  "metadata": {
+    "description": "Transcribe any video URL from inside your agent: YouTube, TikTok, Instagram and 1,800+ sites."
+  },
+  "plugins": [
+    {
+      "name": "anytranscript",
+      "source": "./plugin",
+      "description": "Video transcripts with timestamps, as tools your agent can call. Saves Markdown, CSV, Excel or subtitle files and returns their paths. Handles one video or a whole list.",
+      "category": "productivity",
+      "homepage": "https://github.com/iankiku/anytranscript"
+    }
+  ]
+}

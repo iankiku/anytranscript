@@ -23,67 +23,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-15
+
+Shorter command, more ways to save a transcript, whole lists of videos at
+once, and tools that agents can call directly. Nothing existing breaks.
+
 ### Added
 
-- A short command, `ant`. `ant <url>` does exactly what `anytranscript <url>`
-  does; both names are installed, so existing scripts keep working.
-- Export formats. `-f, --format` takes `txt`, `md`, `csv`, `json`, `srt` or
-  `vtt`, and `-o notes.md` (or `.csv`, `.srt`...) picks the format from the
-  extension. Markdown has a metadata header and timestamped paragraphs that
-  link to the moment in the video on YouTube; CSV has one row per segment.
-- Excel export. `-o talk.xlsx` (or `-f xlsx`) writes a workbook with a
-  Transcript tab, one row per segment, and a Video tab. It opens in Excel and
-  imports into Google Sheets. Bulk runs with `-f xlsx` also write
-  `index.xlsx`. Built in, with no new dependencies.
-- `ant mcp` runs an MCP server with two tools, `transcribe` and
-  `transcribe_many`, so agents get the text, timestamps and saved file paths
-  as a tool result instead of running the CLI. It ships in the same package,
-  with no new dependencies.
-- A Claude Code plugin: `claude plugin marketplace add iankiku/anytranscript`
-  then `claude plugin install anytranscript@anytranscript`. It adds the MCP
-  tools and a skill that tells Claude when and how to use them.
-- `-t, --timestamps` prints one `[mm:ss] text` line per segment instead of a
-  single paragraph.
-- `formatTranscript()` in the library, for the same formats from code.
-- Bulk transcription. `ant url1 url2 ...` or `ant -i urls.txt -d out -f md`
-  writes one file per video plus `index.csv` and `failed.txt`. It runs three
-  videos at once (`-j`), spaces requests to the same site (`--delay`), backs
-  a whole site off after an HTTP 429, retries only temporary failures
-  (`--retries`), and stops stuck download steps (`--timeout`). Re-running the
-  same command skips finished videos; Ctrl-C stops cleanly with exit code 130.
-- `runTasks()` in the library: a small job scheduler with a concurrency
-  limit, spacing between jobs for the same site, a site-wide back-off after a
-  rate limit, retries with jittered exponential backoff, and clean abort.
-  It is the groundwork for bulk transcription.
-- `signal` and `timeoutMs` options on `transcribe()`. An `AbortSignal` stops
-  in-flight yt-dlp, whisper.cpp and upload steps; `timeoutMs` fails any single
-  network step that runs longer with a `TimeoutError`. Local Whisper is never
-  cut off by the timeout.
-- `isRetryable()`, `isRateLimited()` and `siteKey()`: the rules for which
-  failures are worth another attempt, for callers running their own loops.
-- `transcribeMany()` in the library: transcribe a list of URLs into a folder,
-  one file per video in any export format, with `index.csv` and `failed.txt`.
-  Each finished video is recorded in `manifest.jsonl` straight away, so
-  running it again skips what already finished, even after a crash.
+- **`ant`**, a short name for the command. `anytranscript` still works.
+  Apache Ant also installs an `ant` command; where both exist, the first on
+  your `PATH` wins.
+- **Save as a file.** `-o notes.md` picks the format from the file name:
+  Markdown, CSV, Excel (`.xlsx`), SRT or VTT subtitles, JSON or text. `-f`
+  picks it directly. Markdown starts with the title, link and length, then
+  timestamped paragraphs that link to that moment on YouTube.
+- **Excel and Google Sheets.** `.xlsx` files have a Transcript tab (one row
+  per caption, times as numbers) and a Video tab. Text is always stored as
+  text, never as a formula.
+- **Timestamps.** `-t` prints one `[mm:ss] text` line per caption.
+- **Many videos at once.** `ant -i urls.txt -d notes -f md` saves one file per
+  video, plus `index.csv` (and `index.xlsx` with `-f xlsx`) and `failed.txt`.
+  It runs 3 videos at a time (`-j`), waits between requests to the same site
+  (`--delay`), backs off when a site blocks it, retries only temporary
+  errors (`--retries`), and stops stuck downloads (`--timeout`). Run the same
+  command again to carry on where it stopped; Ctrl-C keeps finished files.
+- **For agents: `ant mcp`**, an MCP server in the same package, with two
+  tools, `transcribe` and `transcribe_many`. They return the transcript with
+  timestamps, the video's details, and the full path of every saved file.
+- **For agents: a Claude Code plugin.**
+  `claude plugin marketplace add iankiku/anytranscript`, then
+  `claude plugin install anytranscript@anytranscript`.
+- **For library users:** `formatTranscript()`, `renderTranscript()`,
+  `transcribeMany()`, `runTasks()`, `isRetryable()`, `serveMcp()`, and
+  `signal` and `timeoutMs` options on `transcribe()`.
 
 ### Changed
 
+- Giving more than one URL now transcribes them all. Before, everything
+  after the first was ignored.
 - `-o <file>` now ends the file with a newline, like stdout already did.
-- More than one URL on the command line now runs them all, instead of
-  quietly ignoring everything after the first.
-- Local whisper.cpp runs now queue one at a time within a process, since
-  each already uses every core. `ANYTRANSCRIPT_WHISPER_JOBS` raises the limit.
+- Local Whisper runs one video at a time per process, since it already uses
+  every core. `ANYTRANSCRIPT_WHISPER_JOBS` raises the limit.
 
 ### Fixed
 
-- Running several transcriptions at once on a fresh machine could start
-  duplicate downloads of yt-dlp or a Whisper model into the same partial
-  file. Concurrent callers now share one download, and each process writes
-  its own partial file.
+- Several runs starting at once on a fresh machine could download yt-dlp or
+  a Whisper model into the same half-written file. They now share one
+  download.
 - Two local Whisper runs started in the same millisecond could read each
-  other's output file.
-- A caption request that timed out or was cancelled fell through to a full
-  Whisper run instead of stopping.
+  other's output.
+- A caption request that timed out turned into a full Whisper run instead of
+  stopping.
 
 ## [1.0.2] - 2026-10-19
 

@@ -86,6 +86,19 @@ function variant({ timestamps = false, paragraphSeconds }: FormatOptions): strin
   return JSON.stringify({ timestamps, paragraphSeconds: paragraphSeconds ?? null });
 }
 
+/**
+ * URLs from a text file: one per line, blank lines and `#` comments ignored.
+ * Anything after the first whitespace on a line is ignored too, so a note can
+ * follow the URL.
+ */
+export function parseUrlList(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"))
+    .map((line) => line.split(/\s+/)[0]!);
+}
+
 /** A short, filesystem-safe name: `me-at-the-zoo-jNQXAC9IVRw`. */
 export function transcriptName(transcript: Transcript, url: string): string {
   const slug = transcript.info.title

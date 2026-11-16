@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `-t, --timestamps` prints one `[mm:ss] text` line per segment instead of a
   single paragraph.
 - `formatTranscript()` in the library, for the same formats from code.
+- Bulk transcription. `ant url1 url2 ...` or `ant -i urls.txt -d out -f md`
+  writes one file per video plus `index.csv` and `failed.txt`. It runs three
+  videos at once (`-j`), spaces requests to the same site (`--delay`), backs
+  a whole site off after an HTTP 429, retries only temporary failures
+  (`--retries`), and stops stuck download steps (`--timeout`). Re-running the
+  same command skips finished videos; Ctrl-C stops cleanly with exit code 130.
 - `runTasks()` in the library: a small job scheduler with a concurrency
   limit, spacing between jobs for the same site, a site-wide back-off after a
   rate limit, retries with jittered exponential backoff, and clean abort.
@@ -52,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `-o <file>` now ends the file with a newline, like stdout already did.
+- More than one URL on the command line now runs them all, instead of
+  quietly ignoring everything after the first.
 - Local whisper.cpp runs now queue one at a time within a process, since
   each already uses every core. `ANYTRANSCRIPT_WHISPER_JOBS` raises the limit.
 

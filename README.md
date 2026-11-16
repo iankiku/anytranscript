@@ -231,6 +231,13 @@ ant <url> [options]          # same as: anytranscript <url> [options]
 | `--cookies-from-browser <name>` | Borrow cookies from `chrome`, `safari`, `firefox`, `edge`… |
 | `--cookies <file>` | Netscape-format `cookies.txt`, as an alternative |
 | `-q, --quiet` | Suppress progress output on stderr |
+| `-i, --input <file>` | Read URLs from a file, one per line; `-` for stdin |
+| `-d, --out-dir <dir>` | Folder for bulk output (default `transcripts`) |
+| `-j, --jobs <n>` | Videos at once in bulk mode (default `3`) |
+| `--retries <n>` | Retries for temporary failures (default `3`) |
+| `--delay <seconds>` | Gap between requests to the same site (default `2`) |
+| `--timeout <minutes>` | Stop a stuck download step (default `20`; `0` turns it off) |
+| `--force` | Redo videos finished in an earlier run |
 | `-h, --help` / `-v, --version` | |
 
 ```bash
@@ -253,6 +260,60 @@ ant "<reel-url>" --cookies-from-browser chrome
 
 # Bigger model when the default mis-hears something
 ant "<url>" --model medium
+```
+
+### Many videos at once
+
+Pass several URLs, or a file with one URL per line (`#` comments and blank
+lines are skipped, and anything after the URL on a line is ignored):
+
+```bash
+ant -i urls.txt -f md -d notes        # one Markdown file per video, in notes/
+ant "<url1>" "<url2>" "<url3>"        # several URLs on the command line
+cat urls.txt | ant -i - -f csv        # or from stdin
+```
+
+Each video is written to `notes/` the moment it finishes, named after its
+title and id (`me-at-the-zoo-jNQXAC9IVRw.md`). Alongside them:
+
+| File | What's in it |
+|---|---|
+| `index.csv` | One row per URL ever run into this folder: status, title, channel, duration, source, file, attempts, error |
+| `failed.txt` | URLs that failed or didn't finish, ready for `ant -i notes/failed.txt` |
+| `manifest.jsonl` | The run log that makes resuming work |
+
+A small scheduler runs the list so one bad URL or a rate limit doesn't sink
+the batch:
+
+- **Limited parallelism.** `-j 3` (the default) runs three videos at once.
+  Local Whisper still runs one at a time, because whisper.cpp already uses
+  every core; downloads for the next videos overlap with it.
+- **Polite to each site.** Requests to the same site start at least
+  `--delay 2` seconds apart. When a site answers HTTP 429, every queued video
+  for that site backs off, and the gap widens.
+- **Retries only what's temporary.** Rate limits, 5xx errors, dropped
+  connections and timeouts are retried up to `--retries 3` times with
+  growing, jittered waits. A deleted, private or unsupported video fails at
+  once. A video waiting to retry doesn't hold up the others.
+- **No hung runs.** Any single download step that takes longer than
+  `--timeout 20` minutes is stopped and retried. Local Whisper is never cut
+  off, since slow there means working, not stuck.
+- **Resumable.** Run the same command again and finished videos are
+  skipped, even after a crash. `--force` redoes them; a different `-f`
+  format or `-t` setting counts as not done.
+- **Ctrl-C stops cleanly.** Running downloads are cancelled, finished files
+  are kept, and the rest go into `failed.txt`. A second Ctrl-C quits at once.
+
+```console
+$ ant -i urls.txt -f md -d notes
+[anytranscript] 4 videos: 4 to do, 3 at a time.
+[anytranscript] [1/4] https://www.youtube.com/watch?v=jNQXAC9IVRw
+[anytranscript] [2/4] https://www.youtube.com/watch?v=aqz-KE-bpKQ
+[anytranscript] [1/4] ok: Me at the zoo -> notes/me-at-the-zoo-jNQXAC9IVRw.md (captions)
+[anytranscript] [4/4] failed: ERROR: [youtube] xxxxxxxxxxx: This video is unavailable
+[anytranscript] [2/4] ok: Big Buck Bunny ... -> notes/big-buck-bunny-...-aqz-KE-bpKQ.md (whisper)
+[anytranscript] 3 done, 1 failed. Summary: notes/index.csv
+[anytranscript] re-run what's left with: ant -i notes/failed.txt -d notes -f md
 ```
 
 ### Export formats
@@ -304,6 +365,12 @@ anytranscript "<url>" 2>/dev/null
 | `0` | Success — transcript on stdout (or written to `--out`) |
 | `1` | Failure — video unavailable, bad flag, no backend, network error |
 | `2` | `--captions-only` was set and the video has no captions |
+| `130` | Bulk run stopped with Ctrl-C; finished files are kept |
+
+**Bulk runs** exit `1` if any URL failed. stdout lists the path of every
+transcript the run wrote or found already done, one per line, so
+`ant -i urls.txt -d out | xargs cat` works; `out/index.csv` has the
+per-URL status and errors.
 
 **Structured output when you need it.** `--json` gives timestamped segments on
 **both** paths — captions and Whisper alike — so you can quote a claim with a
@@ -381,6 +448,29 @@ runs longer, with a `TimeoutError`).
 
 Throws `NoCaptionsError` when `captionsOnly` finds none, and `CommandError`
 (carrying `stderr`) when yt-dlp or whisper.cpp exits non-zero.
+
+### `transcribeMany(urls, options)`
+
+The bulk runner behind `ant -i`. Takes every `transcribe` option plus
+`outDir`, `format`, `formatOptions`, `concurrency`, `retries`,
+`delaySeconds`, `timeoutMinutes`, `force`, `signal` and `onEvent`. It never
+throws for a bad URL; every URL comes back as an item:
+
+```ts
+import { transcribeMany } from "@iankiku/anytranscript";
+
+const { items, indexFile, failedFile } = await transcribeMany(urls, {
+  outDir: "notes",
+  format: "md",
+  concurrency: 3,
+  onEvent: (event) => event.type === "done" && console.error(event.item.status, event.item.url),
+});
+// items[i]: { url, status: "ok" | "skipped" | "failed" | "interrupted", file?, title?, error?, attempts }
+```
+
+The scheduler itself is exported as `runTasks(tasks, options)`, for queuing
+your own work with the same concurrency, per-key spacing, retry and abort
+handling.
 
 ### `formatTranscript(transcript, format, options?)`
 

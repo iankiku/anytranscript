@@ -8,6 +8,8 @@ import { realpathSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
+import { relative } from "node:path";
+import { type BatchEvent, parseUrlList, transcribeMany } from "./batch.js";
 import { formatFromPath, formatTranscript, OUTPUT_FORMATS, type OutputFormat } from "./format.js";
 import { NoCaptionsError, transcribe } from "./transcribe.js";
 import type { ModelSize, WhisperBackend } from "./types.js";
@@ -16,7 +18,9 @@ const MODELS: ModelSize[] = ["tiny", "base", "small", "medium", "large-v3"];
 const BACKENDS: WhisperBackend[] = ["auto", "local", "openai", "groq"];
 
 const HELP = `
-  ant <url> [options]        (anytranscript <url> works too)
+  ant <url> [options]          (anytranscript <url> works too)
+  ant <url> <url>... [options]  many videos, one file each
+  ant -i urls.txt [options]     URLs from a file, one per line (- for stdin)
 
   Extract a text transcript from an Instagram, TikTok, or YouTube video URL.
   Uses the platform's own captions when they exist; otherwise downloads the
@@ -43,6 +47,21 @@ const HELP = `
     -h, --help                Show this message
     -v, --version             Show the version
 
+  Many videos
+    -i, --input <file>        Read URLs from a file, one per line; - for stdin
+    -d, --out-dir <dir>       Folder for the transcripts (default: transcripts)
+    -j, --jobs <n>            Videos at once (default: 3). Local Whisper still
+                              runs one at a time; downloads overlap with it
+        --retries <n>         Retries for rate limits, 5xx, timeouts (default: 3)
+        --delay <seconds>     Gap between requests to one site (default: 2)
+        --timeout <minutes>   Give up on a stuck download step (default: 20)
+        --force               Redo videos already finished in an earlier run
+
+    Each video is saved as it finishes, with index.csv (one row per URL) and
+    failed.txt (URLs to re-run). Run the same command again to resume: done
+    videos are skipped. Ctrl-C stops cleanly.
+
+
   Backends
     auto    whisper.cpp if it's installed, else OPENAI_API_KEY or GROQ_API_KEY
     local   whisper.cpp — nothing leaves the machine  (brew install whisper-cpp)
@@ -64,12 +83,30 @@ const HELP = `
     ant "<url>" -o notes.md                 # Markdown, picked from the extension
     ant "<url>" -f csv > segments.csv
     ant "<reel-url>" --cookies-from-browser chrome --model medium
+    ant -i urls.txt -f md -d notes           # bulk: one Markdown file per video
+    ant -i notes/failed.txt -f md -d notes   # re-run only the failures
 `;
 
 async function version(): Promise<string> {
   const pkgPath = fileURLToPath(new URL("../package.json", import.meta.url));
   const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as { version: string };
   return pkg.version;
+}
+
+/** A non-negative number flag, or the fallback when it wasn't given. */
+function amount(value: string | undefined, flag: string, fallback: number, { integer = false, min = 0 } = {}): number {
+  if (value === undefined) return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < min || (integer && !Number.isInteger(n))) {
+    throw new Error(`invalid --${flag} "${value}". Expected ${integer ? "a whole number" : "a number"} of at least ${min}`);
+  }
+  return n;
+}
+
+async function readStdin(): Promise<string> {
+  let text = "";
+  for await (const chunk of process.stdin) text += chunk;
+  return text;
 }
 
 function oneOf<T extends string>(value: string | undefined, allowed: T[], flag: string, fallback: T): T {
@@ -99,6 +136,13 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       "cookies-from-browser": { type: "string" },
       cookies: { type: "string" },
       quiet: { type: "boolean", short: "q" },
+      input: { type: "string", short: "i" },
+      "out-dir": { type: "string", short: "d" },
+      jobs: { type: "string", short: "j" },
+      retries: { type: "string" },
+      delay: { type: "string" },
+      timeout: { type: "string" },
+      force: { type: "boolean" },
       help: { type: "boolean", short: "h" },
       version: { type: "boolean", short: "v" },
     },
@@ -113,8 +157,13 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     return 0;
   }
 
-  const url = positionals[0];
-  if (!url) {
+  const urls = [...positionals];
+  if (values.input) {
+    const text = values.input === "-" ? await readStdin() : await readFile(values.input, "utf8");
+    urls.push(...parseUrlList(text));
+  }
+  if (urls.length === 0) {
+    if (values.input) throw new Error(`no URLs found in ${values.input === "-" ? "stdin" : values.input}`);
     process.stderr.write(`${HELP}\n`);
     return 1;
   }
@@ -127,7 +176,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     if (!values.quiet) process.stderr.write(`[anytranscript] ${message}\n`);
   };
 
-  const result = await transcribe(url, {
+  const shared = {
     lang: values.lang ?? "en",
     model: oneOf(values.model, MODELS, "model", "small"),
     backend: oneOf(values.backend, BACKENDS, "backend", "auto"),
@@ -137,8 +186,15 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     ...(values.workdir ? { workdir: values.workdir } : {}),
     ...(values["cookies-from-browser"] ? { cookiesFromBrowser: values["cookies-from-browser"] } : {}),
     ...(values.cookies ? { cookiesFile: values.cookies } : {}),
-    onProgress: log,
-  });
+  };
+
+  if (urls.length > 1 || values.input) {
+    if (values.out) throw new Error("-o writes a single file. For many URLs, pick a folder with -d <dir>.");
+    if (values.json) throw new Error("--json writes a single file. For many URLs, use -f json.");
+    return runBatch(urls, format, shared, values, log);
+  }
+
+  const result = await transcribe(urls[0]!, { ...shared, onProgress: log });
 
   const rendered = formatTranscript(result, format, { timestamps: values.timestamps ?? false });
   if (values.out) {
@@ -154,6 +210,98 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   }
 
   return 0;
+}
+
+type Values = Record<string, string | boolean | undefined>;
+
+async function runBatch(
+  urls: string[],
+  format: OutputFormat,
+  shared: Parameters<typeof transcribe>[1],
+  values: Values,
+  log: (message: string) => void,
+): Promise<number> {
+  const outDir = (values["out-dir"] as string | undefined) ?? "transcripts";
+  const concurrency = amount(values.jobs as string | undefined, "jobs", 3, { integer: true, min: 1 });
+  const retries = amount(values.retries as string | undefined, "retries", 3, { integer: true });
+  const delaySeconds = amount(values.delay as string | undefined, "delay", 2);
+  const timeoutMinutes = amount(values.timeout as string | undefined, "timeout", 20);
+
+  // First Ctrl-C: stop starting videos and cancel the ones running; what has
+  // finished is already on disk. Second Ctrl-C: leave immediately.
+  const controller = new AbortController();
+  const onInterrupt = () => {
+    log("stopping — finished videos are saved. Run the same command again to resume. Ctrl-C again to quit now.");
+    controller.abort(new Error("interrupted"));
+    process.once("SIGINT", () => process.exit(130));
+  };
+  process.once("SIGINT", onInterrupt);
+
+  const shown = (path: string) => relative(process.cwd(), path) || path;
+  const tag = (e: { position: number; total: number }) => `[${e.position}/${e.total}]`;
+  const onEvent = (event: BatchEvent) => {
+    switch (event.type) {
+      case "plan":
+        log(
+          `${event.total} video${event.total === 1 ? "" : "s"}: ${event.todo} to do` +
+            (event.skipped ? `, ${event.skipped} already done in ${outDir} (--force redoes them)` : "") +
+            `, ${Math.min(concurrency, Math.max(event.todo, 1))} at a time.`,
+        );
+        break;
+      case "start":
+        if (event.attempt === 1) log(`${tag(event)} ${event.url}`);
+        break;
+      case "retry":
+        log(
+          `${tag(event)} retrying in ${Math.ceil(event.delayMs / 1000)}s ` +
+            `(attempt ${event.attempt + 1} of ${retries + 1}): ${event.error.message.split("\n")[0]}`,
+        );
+        break;
+      case "done": {
+        const { item } = event;
+        if (item.status === "ok") log(`${tag(event)} ok: ${item.title} -> ${shown(item.file!)} (${item.source})`);
+        if (item.status === "failed") log(`${tag(event)} failed: ${item.error}`);
+        break;
+      }
+    }
+  };
+
+  try {
+    const result = await transcribeMany(urls, {
+      ...shared,
+      outDir,
+      format,
+      formatOptions: { timestamps: Boolean(values.timestamps) },
+      concurrency,
+      retries,
+      delaySeconds,
+      timeoutMinutes,
+      force: Boolean(values.force),
+      signal: controller.signal,
+      onEvent,
+    });
+
+    const count = (status: string) => result.items.filter((item) => item.status === status).length;
+    const [ok, skipped, failed, interrupted] = ["ok", "skipped", "failed", "interrupted"].map(count);
+    log(
+      [`${ok} done`, skipped && `${skipped} already done`, failed && `${failed} failed`, interrupted && `${interrupted} not finished`]
+        .filter(Boolean)
+        .join(", ") + `. Summary: ${shown(result.indexFile)}`,
+    );
+    if (result.failedFile) {
+      const formatFlag = format === "txt" ? "" : ` -f ${format}`;
+      log(`re-run what's left with: ant -i ${shown(result.failedFile)} -d ${outDir}${formatFlag}`);
+    }
+
+    // stdout lists every transcript this run produced or found, so a script
+    // can pipe it straight into the next step.
+    for (const item of result.items) if (item.file) process.stdout.write(`${item.file}\n`);
+
+    if (controller.signal.aborted) return 130;
+    return failed || interrupted ? 1 : 0;
+  } finally {
+    process.removeListener("SIGINT", onInterrupt);
+  }
 }
 
 /**

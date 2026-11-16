@@ -4,7 +4,7 @@ import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
-import { transcribeMany, transcriptName } from "../dist/batch.js";
+import { parseUrlList, transcribeMany, transcriptName } from "../dist/batch.js";
 import { CommandError } from "../dist/proc.js";
 
 let root;
@@ -229,4 +229,11 @@ test("changing --timestamps redoes the video instead of skipping it", async () =
   await transcribeMany(one, { outDir, formatOptions: { timestamps: true }, ...FAST, transcriber: site.transcriber });
   assert.equal(site.calls.length, 1);
   assert.equal(await readFile(join(outDir, "video-aaa-aaa.txt"), "utf8"), "[00:00] words from aaa\n");
+});
+
+test("parseUrlList skips blanks and comments and allows a note after the URL", () => {
+  assert.deepEqual(parseUrlList("# my list\nhttps://a.com/1\n\n  https://b.com/2   talk by X\r\n#https://c.com/3\n"), [
+    "https://a.com/1",
+    "https://b.com/2",
+  ]);
 });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -71,6 +71,14 @@ test("end to end: a non-link fails with exit 1 and a clear message", async () =>
   assert.doesNotMatch(stderr, /yt-dlp/);
 });
 
+test("end to end: -o reports the full path of the saved file", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ant-out-"));
+  const { code, stderr } = await ant(["https://www.youtube.com/watch?v=abc", "-o", "notes.md"], dir);
+  assert.equal(code, 0);
+  assert.ok(stderr.includes(`wrote md transcript to ${join(await realpath(dir), "notes.md")}\n`), stderr);
+  await rm(dir, { recursive: true, force: true });
+});
+
 test("end to end: a bulk run from a file, then a resumed re-run", async () => {
   const dir = await mkdtemp(join(tmpdir(), "ant-bulk-"));
   await writeFile(
@@ -79,11 +87,12 @@ test("end to end: a bulk run from a file, then a resumed re-run", async () => {
   );
 
   const first = await ant(["-i", "urls.txt", "-f", "md", "-d", "out", "--delay", "0"], dir);
+  const out = join(await realpath(dir), "out");
   assert.equal(first.code, 1, "one video failed, so the run is not a success");
-  assert.equal(first.stdout, "out/talk-one-one.md\nout/talk-two-two.md\n");
+  assert.equal(first.stdout, `${out}/talk-one-one.md\n${out}/talk-two-two.md\n`, "full paths, so they open from anywhere");
   assert.match(first.stderr, /\[2\/3\] failed: ERROR: \[youtube\] dead: Video unavailable\n/);
-  assert.match(first.stderr, /2 done, 1 failed\. Summary: out\/index\.csv/);
-  assert.match(first.stderr, /re-run what's left with: ant -i out\/failed\.txt -d out -f md/);
+  assert.ok(first.stderr.includes(`2 done, 1 failed. Summary: ${out}/index.csv`));
+  assert.ok(first.stderr.includes(`re-run what's left with: ant -i ${out}/failed.txt -d out -f md`));
   assert.match(await readFile(join(dir, "out", "talk-one-one.md"), "utf8"), /\*\*\[01:05\]\(https:\/\/youtu\.be\/one\?t=65\)\*\* the end/);
   assert.equal(await readFile(join(dir, "out", "failed.txt"), "utf8"), "https://www.youtube.com/watch?v=dead\n");
 

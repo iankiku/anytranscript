@@ -8,7 +8,7 @@ import { realpathSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
-import { relative } from "node:path";
+import { resolve } from "node:path";
 import { type BatchEvent, parseUrlList, transcribeMany } from "./batch.js";
 import { formatFromPath, OUTPUT_FORMATS, type OutputFormat, renderTranscript } from "./format.js";
 import { serveMcp } from "./mcp.js";
@@ -211,14 +211,14 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   const rendered = renderTranscript(result, format, { timestamps: values.timestamps ?? false });
   if (values.out) {
     await writeFile(values.out, rendered, "utf8");
-    log(`wrote ${format} transcript to ${values.out}`);
+    log(`wrote ${format} transcript to ${resolve(values.out)}`);
   } else {
     process.stdout.write(rendered);
   }
 
   if (values.json) {
     await writeFile(values.json, `${JSON.stringify(result.segments, null, 2)}\n`, "utf8");
-    log(`wrote ${result.segments.length} timestamped segments to ${values.json}`);
+    log(`wrote ${result.segments.length} timestamped segments to ${resolve(values.json)}`);
   }
 
   return 0;
@@ -249,7 +249,7 @@ async function runBatch(
   };
   process.once("SIGINT", onInterrupt);
 
-  const shown = (path: string) => relative(process.cwd(), path) || path;
+  const shown = (path: string) => resolve(path);
   const tag = (e: { position: number; total: number }) => `[${e.position}/${e.total}]`;
   const onEvent = (event: BatchEvent) => {
     switch (event.type) {
@@ -307,7 +307,7 @@ async function runBatch(
 
     // stdout lists every transcript this run produced or found, so a script
     // can pipe it straight into the next step.
-    for (const item of result.items) if (item.file) process.stdout.write(`${item.file}\n`);
+    for (const item of result.items) if (item.file) process.stdout.write(`${resolve(item.file)}\n`);
 
     if (controller.signal.aborted) return 130;
     return failed || interrupted ? 1 : 0;

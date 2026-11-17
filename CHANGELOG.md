@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The CLI names every saved file by its full path: the `-o` and `--json`
+  messages, the bulk progress lines, and the file list on stdout.
+- The plugin's skill tells agents to save transcripts in your working folder,
+  never a temporary one, and to give you the full path.
+
 ### Fixed
 
 - Links are tidied before use: quotes (straight or curly), `url=`, spaces, `<...>`

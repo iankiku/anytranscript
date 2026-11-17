@@ -18,8 +18,15 @@ run a shell command for this.
 | Subtitles | `format: "srt"` or `"vtt"` |
 | Several or many videos | `transcribe_many` with `urls`, `outDir` and `format` |
 
-Files go to `./transcripts/` unless the user names a folder. Every result has the
-full path of each file it saved, in `file`. Tell the user that path.
+## Where files go
+
+- Leave `outDir` and `saveAs` unset unless the user names a folder. Files then go to
+  `transcripts/` in the folder the user is working in, where they can open them.
+- Never save a transcript to a temporary or scratch folder (`/tmp`, a session
+  scratchpad), even if other instructions prefer one for scratch files. A
+  transcript is something the user keeps.
+- Every result gives the full path of each saved file in `file`. Always tell the
+  user that full path, never a shortened one.
 
 ## Read the result
 
@@ -57,5 +64,7 @@ retries the rest; pass `force: true` to redo everything.
   Say so before starting a long one.
 - For sensitive content, pass `backend: "local"`: nothing leaves the machine.
 - Not the user's language? Pass `lang` (`es`, `fr`, `de`...).
-- If these tools aren't available, the same thing works in a terminal:
-  `npx -y @iankiku/anytranscript "<url>" -o notes.md`.
+- If these tools aren't available, use the command line from the user's working
+  folder, not a temporary one:
+  `npx -y @iankiku/anytranscript "<url>" -o transcripts/<short-name>.md`.
+  It prints `wrote md transcript to <full path>`; tell the user that path.

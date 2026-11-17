@@ -23,22 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- The CLI names every saved file by its full path: the `-o` and `--json`
-  messages, the bulk progress lines, and the file list on stdout.
-- The plugin's skill tells agents to save transcripts in your working folder,
-  never a temporary one, and to give you the full path.
-
-### Fixed
-
-- Links are tidied before use: quotes (straight or curly), `url=`, spaces, `<...>`
-  and a trailing full stop are dropped, and `youtube.com/...` gets `https://`.
-  Anything that still isn't a web link stops with exit code 1 and says why,
-  before anything is downloaded. A bad line in a list is listed in
-  `failed.txt` and isn't retried.
-
-## [1.1.0] - 2026-11-15
+## [1.1.0] - 2026-11-17
 
 Shorter command, more ways to save a transcript, whole lists of videos at
 once, and tools that agents can call directly. Nothing existing breaks.
@@ -74,6 +59,10 @@ once, and tools that agents can call directly. Nothing existing breaks.
 
 ### Changed
 
+- The CLI names every saved file by its full path: the `-o` and `--json`
+  messages, the bulk progress lines, and the file list on stdout.
+- The plugin's skill tells agents to save transcripts in your working folder,
+  never a temporary one, and to give you the full path.
 - Giving more than one URL now transcribes them all. Before, everything
   after the first was ignored.
 - `-o <file>` now ends the file with a newline, like stdout already did.
@@ -82,6 +71,11 @@ once, and tools that agents can call directly. Nothing existing breaks.
 
 ### Fixed
 
+- Links are tidied before use: quotes (straight or curly), `url=`, spaces, `<...>`
+  and a trailing full stop are dropped, and `youtube.com/...` gets `https://`.
+  Anything that still isn't a web link stops with exit code 1 and says why,
+  before anything is downloaded. A bad line in a list is listed in
+  `failed.txt` and isn't retried.
 - Several runs starting at once on a fresh machine could download yt-dlp or
   a Whisper model into the same half-written file. They now share one
   download.

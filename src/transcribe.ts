@@ -7,6 +7,7 @@ import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Transcript, TranscribeOptions } from "./types.js";
+import { parseVideoUrl } from "./url.js";
 import { vttToSegments } from "./vtt.js";
 import { cleanup, downloadAudio, fetchCaptions, getInfo, resolveYtDlp } from "./ytdlp.js";
 import { selectBackend, transcribeHosted, transcribeLocal } from "./whisper.js";
@@ -28,7 +29,8 @@ export class NoCaptionsError extends Error {
  * @example
  * const { text } = await transcribe("https://www.youtube.com/watch?v=...");
  */
-export async function transcribe(url: string, options: TranscribeOptions = {}): Promise<Transcript> {
+export async function transcribe(input: string, options: TranscribeOptions = {}): Promise<Transcript> {
+  const url = parseVideoUrl(input);
   const {
     lang = "en",
     model = "small",

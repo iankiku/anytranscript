@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Links are tidied before use: quotes (straight or curly), `url=`, spaces, `<...>`
+  and a trailing full stop are dropped, and `youtube.com/...` gets `https://`.
+  Anything that still isn't a web link stops with exit code 1 and says why,
+  before anything is downloaded. A bad line in a list is listed in
+  `failed.txt` and isn't retried.
+
 ## [1.1.0] - 2026-11-15
 
 Shorter command, more ways to save a transcript, whole lists of videos at

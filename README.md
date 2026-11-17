@@ -426,7 +426,7 @@ anytranscript "<url>" 2>/dev/null
 | Code | Meaning |
 |---|---|
 | `0` | Success — transcript on stdout (or written to `--out`) |
-| `1` | Failure — video unavailable, bad flag, no backend, network error |
+| `1` | Failure — not a video link, video unavailable, bad flag, no backend, network error |
 | `2` | `--captions-only` was set and the video has no captions |
 | `130` | Bulk run stopped with Ctrl-C; finished files are kept |
 

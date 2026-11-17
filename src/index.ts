@@ -8,6 +8,7 @@
  */
 
 export { transcribe, NoCaptionsError } from "./transcribe.js";
+export { InvalidUrlError, parseVideoUrl, tidyUrl } from "./url.js";
 export { vttToText, vttToSegments } from "./vtt.js";
 export {
   formatTranscript,

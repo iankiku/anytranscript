@@ -35,7 +35,7 @@ function describe(error: Error): string {
 
 /** Worth another attempt: rate limits, server errors, timeouts, dropped connections. */
 export function isRetryable(error: Error): boolean {
-  if (error instanceof NoCaptionsError || error.name === "IntegrityError") return false;
+  if (error instanceof NoCaptionsError || error.name === "IntegrityError" || error.name === "InvalidUrlError") return false;
   const text = describe(error);
   if (PERMANENT.test(text)) return false;
   return error.name === "TimeoutError" || TRANSIENT.test(text);

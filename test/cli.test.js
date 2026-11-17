@@ -57,6 +57,20 @@ test("end to end: a single URL with timestamps", async () => {
   assert.equal(stdout, "[00:01] hello from abc\n[01:05] the end\n");
 });
 
+test("end to end: a quoted url= argument still works", async () => {
+  const { code, stdout } = await ant(['url=https://www.youtube.com/watch?v=abc ', "-t", "-q"]);
+  assert.equal(code, 0);
+  assert.equal(stdout, "[00:01] hello from abc\n[01:05] the end\n");
+});
+
+test("end to end: a non-link fails with exit 1 and a clear message", async () => {
+  const { code, stdout, stderr } = await ant(["not a link"]);
+  assert.equal(code, 1);
+  assert.equal(stdout, "");
+  assert.match(stderr, /not a valid video URL: "not a link" \(it contains spaces/);
+  assert.doesNotMatch(stderr, /yt-dlp/);
+});
+
 test("end to end: a bulk run from a file, then a resumed re-run", async () => {
   const dir = await mkdtemp(join(tmpdir(), "ant-bulk-"));
   await writeFile(

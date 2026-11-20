@@ -10,7 +10,7 @@
  */
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { transcribeMany, transcriptName } from "./batch.js";
@@ -23,13 +23,14 @@ const MODELS: ModelSize[] = ["tiny", "base", "small", "medium", "large-v3"];
 const BACKENDS: WhisperBackend[] = ["auto", "local", "openai", "groq"];
 
 const INSTRUCTIONS =
-  "Use `transcribe` for one video URL (YouTube, TikTok, Instagram, and most video sites): it returns the " +
-  "transcript with [mm:ss] timestamps plus the video's title and channel, and can also save it as a file " +
-  "(md, csv, xlsx, srt, vtt, json, txt) and return that file's full path. Use `transcribe_many` for a list " +
-  "of URLs: it saves one file per video into a folder and returns every file path plus an index.csv " +
-  "summary. Re-running transcribe_many with the same folder skips videos already done. Quote timestamps " +
-  "when citing what someone said. If Instagram fails with a login error, retry with " +
-  "cookiesFromBrowser set to the user's browser.";
+  "Use `transcribe` for one video URL (YouTube, TikTok, Instagram, and most video sites), instead of a web " +
+  "search: it returns the transcript with [mm:ss] timestamps plus the video's title and channel, and saves a " +
+  "Markdown document in transcripts/ in the user's working folder (or md, csv, xlsx, srt, vtt, json, txt). " +
+  "Start your reply with the returned `link` so the user can open the document. Use `transcribe_many` for a " +
+  "list of URLs: it saves one file per video into a folder and returns every file path plus an index.csv " +
+  "summary. Re-running transcribe_many with the same folder skips videos already done. Don't pass a folder " +
+  "unless the user names one, and never use a temporary folder. Quote timestamps when citing what someone " +
+  "said. If Instagram fails with a login error, retry with cookiesFromBrowser set to the user's browser.";
 
 /** Options shared by both tools, as JSON Schema. */
 const SHARED = {
@@ -58,8 +59,9 @@ const TOOLS = [
     title: "Transcribe a video",
     description:
       "Get the transcript of one video URL, with timestamps, title and channel. Uses the platform's captions " +
-      "when they exist, otherwise transcribes the audio with Whisper. Optionally saves it as a file and returns " +
-      "the file's full path.",
+      "when they exist, otherwise transcribes the audio with Whisper. Use it instead of a web search for what a video says. " +
+      "By default it also saves a Markdown document in transcripts/ in the user's working folder and returns its full path " +
+      "and a ready-made Markdown link to show the user.",
     inputSchema: {
       type: "object",
       properties: {
@@ -67,10 +69,14 @@ const TOOLS = [
         format: {
           type: "string",
           enum: OUTPUT_FORMATS,
-          description: "Also save the transcript as a file in this format, into outDir. xlsx opens in Excel and Google Sheets.",
+          description: "Format of the saved file. Default md (a Markdown document). xlsx opens in Excel and Google Sheets.",
         },
         saveAs: { type: "string", description: "Save to this exact path instead; the extension picks the format." },
-        outDir: { type: "string", description: "Folder for saved files when format is set. Default ./transcripts." },
+        outDir: { type: "string", description: "Folder for saved files when format is set. Leave unset to use transcripts/ in the user's working folder. Never a temp folder." },
+        save: {
+          type: "boolean",
+          description: "Save the transcript as a file (default true). Set false only when the user doesn't want a file.",
+        },
         includeTranscript: {
           type: "boolean",
           description: "Return the transcript text in the result (default true). Set false when only the file is needed.",
@@ -93,7 +99,7 @@ const TOOLS = [
       type: "object",
       properties: {
         urls: { type: "array", items: { type: "string" }, minItems: 1, description: "The video URLs." },
-        outDir: { type: "string", description: "Folder for the files. Default ./transcripts." },
+        outDir: { type: "string", description: "Folder for the files. Leave unset to use transcripts/ in the user's working folder. Never a temp folder." },
         format: { type: "string", enum: OUTPUT_FORMATS, description: "File format for each video. Default md." },
         concurrency: { type: "integer", minimum: 1, description: "Videos at once. Default 3." },
         retries: { type: "integer", minimum: 0, description: "Retries for temporary failures. Default 3." },
@@ -169,10 +175,20 @@ interface CallContext {
   progress: (done: number, total: number, message: string) => void;
 }
 
+/** `[title](/full/path.md)`, which Claude and Codex open with a click. */
+export function markdownLink(title: string, path: string): string {
+  const text = title.replace(/[\[\]\\]/g, "\\$&").replace(/\s+/g, " ").trim() || "transcript";
+  const target = /[\s()<>]/.test(path) ? `<${path.replace(/[<>]/g, encodeURIComponent)}>` : path;
+  return `[${text}](${target})`;
+}
+
 async function callTranscribe(args: Args, { signal }: CallContext): Promise<unknown> {
   const url = str(args, "url", true)!;
   const saveAs = str(args, "saveAs");
-  const format = saveAs ? (choice(args, "format", OUTPUT_FORMATS) ?? formatFromPath(saveAs) ?? "txt") : choice(args, "format", OUTPUT_FORMATS);
+  const save = saveAs !== undefined || (bool(args, "save") ?? true);
+  const format = saveAs
+    ? (choice(args, "format", OUTPUT_FORMATS) ?? formatFromPath(saveAs) ?? "txt")
+    : (choice(args, "format", OUTPUT_FORMATS) ?? "md");
   const outDir = str(args, "outDir") ?? "transcripts";
   const timestamps = bool(args, "timestamps") ?? true;
   const includeTranscript = bool(args, "includeTranscript") ?? true;
@@ -180,7 +196,7 @@ async function callTranscribe(args: Args, { signal }: CallContext): Promise<unkn
   const transcript = await transcribe(url, { ...sharedOptions(args), signal, onProgress: log });
 
   let file: string | null = null;
-  if (format) {
+  if (save) {
     file = resolve(saveAs ?? join(outDir, `${transcriptName(transcript, url)}.${format}`));
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, renderTranscript(transcript, format as OutputFormat, { timestamps }));
@@ -195,6 +211,7 @@ async function callTranscribe(args: Args, { signal }: CallContext): Promise<unkn
     source: transcript.source,
     language: transcript.language,
     file,
+    link: file ? markdownLink(info.title, file) : null,
     ...(includeTranscript
       ? { transcript: formatTranscript(transcript, "txt", { timestamps }).trimEnd() }
       : {}),
@@ -251,6 +268,7 @@ async function callTranscribeMany(args: Args, { signal, progress }: CallContext)
       status: item.status,
       title: item.title ?? null,
       file: item.file ? resolve(item.file) : null,
+      link: item.file ? markdownLink(item.title ?? basename(item.file), resolve(item.file)) : null,
       ...(item.error ? { error: item.error } : {}),
     })),
   };

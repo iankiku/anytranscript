@@ -23,6 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The `transcribe` tool now saves a Markdown document by default**, in
+  `transcripts/` in your working folder, so you can open it in Claude Code or
+  Codex. Pass `save: false` for no file. Both tools also return `link`, a
+  Markdown link to each saved file.
+- The plugin works in Codex too:
+  `codex plugin marketplace add iankiku/anytranscript`, then
+  `codex plugin add anytranscript@anytranscript`.
+
 ## [1.1.0] - 2026-11-17
 
 Shorter command, more ways to save a transcript, whole lists of videos at

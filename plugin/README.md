@@ -1,15 +1,24 @@
-# anytranscript plugin for Claude Code
+# anytranscript plugin for Claude Code and Codex
 
-Transcribe any video URL from inside Claude Code: YouTube, TikTok, Instagram and
-1,800+ other sites. Claude gets the transcript with timestamps, can save it as
-Markdown, CSV, Excel or subtitles, and tells you where the file is. No terminal
-commands needed.
+Transcribe any video URL from inside Claude Code or Codex: YouTube, TikTok,
+Instagram and 1,800+ other sites. The agent gets the transcript with timestamps,
+saves it as a Markdown document in your working folder (or CSV, Excel or
+subtitles), and links it so it opens with a click. No terminal commands needed.
 
 ## Install
+
+Claude Code (terminal, desktop app, VS Code):
 
 ```bash
 claude plugin marketplace add iankiku/anytranscript
 claude plugin install anytranscript@anytranscript
+```
+
+Codex:
+
+```bash
+codex plugin marketplace add iankiku/anytranscript
+codex plugin add anytranscript@anytranscript
 ```
 
 Then ask in plain words:
@@ -22,8 +31,9 @@ Then ask in plain words:
 
 - **Two tools:** `transcribe` (one video) and `transcribe_many` (a list, with
   retries and resume). Both return the full path of every file they save.
-- **A skill** that tells Claude when to use them, how to read the result, and
-  what to do when a site asks for a login.
+- **A skill** that tells the agent when to use them, to save a Markdown document
+  in your working folder (never a temporary one) and link it by its full path,
+  how to read the result, and what to do when a site asks for a login.
 
 ## Needs
 

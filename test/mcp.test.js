@@ -88,12 +88,27 @@ test("tools/list describes both tools with input schemas", async () => {
   assert.ok(byName.transcribe.annotations.readOnlyHint === false);
 });
 
-test("transcribe returns timestamped text and video details, without writing a file", async () => {
+test("transcribe saves a Markdown document by default and returns a link to it", async () => {
   const data = payload(await call(server, "transcribe", { url: "https://www.youtube.com/watch?v=abc" }));
   assert.equal(data.title, "Talk abc");
   assert.equal(data.source, "captions");
-  assert.equal(data.file, null);
+  assert.equal(data.file, join(dir, "transcripts", "talk-abc-abc.md"));
+  assert.equal(data.link, `[Talk abc](${data.file})`);
+  assert.match(await readFile(data.file, "utf8"), /^# Talk abc/);
   assert.equal(data.transcript, "[00:01] hello from abc\n[01:05] the end");
+});
+
+test("transcribe with save: false writes no file", async () => {
+  const data = payload(await call(server, "transcribe", { url: "https://www.youtube.com/watch?v=nofile", save: false }));
+  assert.equal(data.file, null);
+  assert.equal(data.link, null);
+  await assert.rejects(readFile(join(dir, "transcripts", "talk-nofile-nofile.md")));
+});
+
+test("markdown links survive spaces and brackets", async () => {
+  const { markdownLink } = await import("../dist/mcp.js");
+  assert.equal(markdownLink("A [draft] talk", "/a/b.md"), "[A \\[draft\\] talk](/a/b.md)");
+  assert.equal(markdownLink("Talk", "/My Notes/t (1).md"), "[Talk](</My Notes/t (1).md>)");
 });
 
 test("transcribe saves a file when asked and returns its full path", async () => {

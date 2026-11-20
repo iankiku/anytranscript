@@ -4,14 +4,14 @@
 
 **Video links in, transcripts you can research with out.**
 
-One link or a thousand. Timestamps on every line. Saved as notes, a spreadsheet or subtitles.<br>
-Built for you in the terminal and for your AI agent as a tool.
+A plugin for Claude Code and Codex, and a command-line tool.<br>
+One link or a thousand. Timestamps on every line. Saved as a Markdown document you can open right in Claude or Codex.
 
 <br>
 
 [![npm](https://img.shields.io/npm/v/@iankiku/anytranscript?style=flat-square&color=CC3F3F&label=npm)](https://www.npmjs.com/package/@iankiku/anytranscript) [![downloads](https://img.shields.io/npm/dm/@iankiku/anytranscript?style=flat-square&color=5A6370&label=downloads)](https://www.npmjs.com/package/@iankiku/anytranscript) [![CI](https://img.shields.io/github/actions/workflow/status/iankiku/anytranscript/ci.yml?style=flat-square&color=5A6370&label=CI)](https://github.com/iankiku/anytranscript/actions/workflows/ci.yml) [![node](https://img.shields.io/node/v/@iankiku/anytranscript?style=flat-square&color=5A6370&label=node)](https://nodejs.org) [![deps](https://img.shields.io/badge/runtime%20deps-0-5A6370?style=flat-square)](#how-its-built) [![license](https://img.shields.io/badge/license-MIT-5A6370?style=flat-square)](LICENSE)
 
-[Install](#install) · [How it works](#how-it-works) · [CLI](#cli) · [For agents](#for-agents) · [MCP server](#mcp-server) · [Library](#library) · [How it&#39;s built](#how-its-built)
+[Plugin](#use-it-as-a-plugin) · [Install](#install) · [How it works](#how-it-works) · [CLI](#cli) · [For agents](#for-agents) · [MCP server](#mcp-server) · [Library](#library) · [How it&#39;s built](#how-its-built)
 
 </div>
 
@@ -32,6 +32,35 @@ cool (baaaaaaaaaaahhh!!) and that's pretty much all there is to say
 
 Transcript on stdout, progress on stderr — so `2>/dev/null` always gives you
 clean text.
+
+## Use it as a plugin
+
+Install it once and ask in plain words. The agent calls the tools itself, saves a
+Markdown document in your working folder, and links it so it opens with a click.
+
+**Claude Code** (terminal, desktop app, VS Code):
+
+```bash
+claude plugin marketplace add iankiku/anytranscript
+claude plugin install anytranscript@anytranscript
+```
+
+**Codex:**
+
+```bash
+codex plugin marketplace add iankiku/anytranscript
+codex plugin add anytranscript@anytranscript
+```
+
+Then ask:
+
+- *"What does this video say about pricing? https://youtu.be/..."*
+- *"Transcribe every link in links.txt and give me an Excel file for each."*
+
+The answer starts with a link like
+`Saved: [Me at the zoo](/Users/you/project/transcripts/me-at-the-zoo-jNQXAC9IVRw.md)`.
+Files go to `transcripts/` in the folder you are working in, never a temporary
+folder. Details: [For agents](#for-agents).
 
 ## Platforms
 
@@ -390,18 +419,15 @@ the weights from Hugging Face and caches them.
 There are three ways for an agent to use anytranscript. Pick the first one
 your agent supports.
 
-### 1. Claude Code plugin
+### 1. Claude Code or Codex plugin
 
-```bash
-claude plugin marketplace add iankiku/anytranscript
-claude plugin install anytranscript@anytranscript
-```
-
-This adds the two [MCP tools](#mcp-server) and a skill that tells Claude when
-to use them, how to read the result, and what to do when a site asks for a
-login. Then ask in plain words: *"Transcribe the videos in links.txt into
-Excel files and tell me which ones failed."* Claude calls the tools directly,
-with no terminal, and reports the saved file paths.
+Install commands are in [Use it as a plugin](#use-it-as-a-plugin). The plugin
+adds the two [MCP tools](#mcp-server) and a skill that tells the agent when to
+use them, to save every transcript as a Markdown document in your working
+folder, how to read the result, and what to do when a site asks for a login.
+Then ask in plain words: *"Transcribe the videos in links.txt into Excel files
+and tell me which ones failed."* The agent calls the tools directly, with no
+terminal, and links each saved file by its full path.
 
 ### 2. Any MCP client
 
@@ -601,8 +627,8 @@ starts faster.
 
 | Tool | What it does | Returns |
 |---|---|---|
-| `transcribe` | One video. Optionally saves it with `format` (into `outDir`, default `./transcripts`) or `saveAs` (an exact path) | `title`, `url`, `channel`, `duration`, `source`, `language`, `file` (full path or `null`), `transcript` (`[mm:ss]` lines) |
-| `transcribe_many` | A list of `urls` into `outDir`, one file per video in `format` (default `md`), with the same retries, spacing and resume as `ant -i` | `outDir`, `index` (index.csv), `failedList`, counts, and per URL: `status`, `title`, `file`, `error` |
+| `transcribe` | One video. Saves a Markdown document into `outDir` (default `./transcripts`) unless `save: false`; `format` picks another type, `saveAs` an exact path | `title`, `url`, `channel`, `duration`, `source`, `language`, `file` (full path or `null`), `link` (a Markdown link to it), `transcript` (`[mm:ss]` lines) |
+| `transcribe_many` | A list of `urls` into `outDir`, one file per video in `format` (default `md`), with the same retries, spacing and resume as `ant -i` | `outDir`, `index` (index.csv), `failedList`, counts, and per URL: `status`, `title`, `file`, `link`, `error` |
 
 Both take `lang`, `model`, `backend`, `whisperOnly`, `captionsOnly`,
 `cookiesFromBrowser` and `timestamps`. `transcribe` takes

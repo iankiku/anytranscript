@@ -18,8 +18,9 @@ exact commit and workflow run that produced it.
 # 1. Move the Unreleased entries into a new version section, dated today.
 $EDITOR CHANGELOG.md
 
-# 2. Bump the version in plugin/.claude-plugin/plugin.json and the
-#    version range in plugin/.mcp.json to match. `npm test` fails until they do.
+# 2. Set the same version in plugin/.claude-plugin/plugin.json and the exact
+#    pin in plugin/.mcp.json (`@iankiku/anytranscript@X.Y.Z`; Anthropic's
+#    plugin directory refuses ranges). `npm test` fails until they match.
 $EDITOR plugin/.claude-plugin/plugin.json plugin/.mcp.json
 
 # 3. Bump the version. This commits and tags in one step.

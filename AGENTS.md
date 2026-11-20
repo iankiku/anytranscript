@@ -58,8 +58,9 @@ Tests import from `dist/`, so build before testing.
 6. **Small PRs, one commit each, an issue linked.** Add a line under
    `## [Unreleased]` in `CHANGELOG.md`, written for the person upgrading.
 7. **Keep the plugin in step.** `plugin/.claude-plugin/plugin.json` names
-   the version being released, and `plugin/.mcp.json` asks for that version
-   or newer. `npm test` checks they agree, and a release refuses to publish
+   the version being released, and `plugin/.mcp.json` pins exactly that
+   version (the plugin directory refuses ranges). `npm test` checks they
+   agree, and a release refuses to publish
    unless the plugin version equals `package.json`.
 
 Releases: see [RELEASING.md](RELEASING.md).

@@ -17,9 +17,9 @@ test("the plugin runs the package version it was written for", async () => {
   const plugin = await json("plugin/.claude-plugin/plugin.json");
   assert.ok(atLeast(plugin.version, pkg.version), `plugin ${plugin.version} is behind package ${pkg.version}`);
 
-  const [major, minor] = plugin.version.split(".");
+  // Anthropic's plugin directory refuses version ranges, so the exact version is pinned.
   const { args } = (await json("plugin/.mcp.json")).mcpServers.anytranscript;
-  assert.deepEqual(args, ["-y", `@iankiku/anytranscript@^${major}.${minor}.0`, "mcp"]);
+  assert.deepEqual(args, ["-y", `@iankiku/anytranscript@${plugin.version}`, "mcp"]);
 });
 
 test("the marketplace lists the plugin from ./plugin", async () => {

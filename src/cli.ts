@@ -5,10 +5,10 @@
  */
 
 import { realpathSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { type BatchEvent, parseUrlList, transcribeMany } from "./batch.js";
 import { formatFromPath, OUTPUT_FORMATS, type OutputFormat, renderTranscript } from "./format.js";
 import { serveMcp } from "./mcp.js";
@@ -213,6 +213,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
 
   const rendered = renderTranscript(result, format, { timestamps: values.timestamps ?? false });
   if (values.out) {
+    await mkdir(dirname(resolve(values.out)), { recursive: true });
     await writeFile(values.out, rendered, "utf8");
     log(`wrote ${format} transcript to ${resolve(values.out)}`);
   } else {
@@ -220,6 +221,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   }
 
   if (values.json) {
+    await mkdir(dirname(resolve(values.json)), { recursive: true });
     await writeFile(values.json, `${JSON.stringify(result.segments, null, 2)}\n`, "utf8");
     log(`wrote ${result.segments.length} timestamped segments to ${resolve(values.json)}`);
   }

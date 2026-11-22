@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Runs with a Whisper model already downloaded no longer look up its checksum
   online first.
 
+### Fixed
+
+- `-o` and `--json` create missing folders. `ant <url> -o notes/talk.md`
+  used to transcribe the whole video, then fail with `ENOENT` when `notes/`
+  didn't exist.
+
 ## [1.2.0] - 2026-11-19
 
 Transcripts arrive as Markdown documents you can open in Claude Code or

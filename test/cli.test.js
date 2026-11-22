@@ -71,6 +71,18 @@ test("end to end: a non-link fails with exit 1 and a clear message", async () =>
   assert.doesNotMatch(stderr, /yt-dlp/);
 });
 
+test("end to end: -o and --json create missing folders", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "ant-out-"));
+  const { code, stderr } = await ant(
+    ["https://www.youtube.com/watch?v=abc", "-o", "new/notes/talk.md", "--json", "data/segments.json"],
+    dir,
+  );
+  assert.equal(code, 0, stderr);
+  assert.match(await readFile(join(dir, "new", "notes", "talk.md"), "utf8"), /hello from abc/);
+  assert.equal(JSON.parse(await readFile(join(dir, "data", "segments.json"), "utf8")).length, 2);
+  await rm(dir, { recursive: true, force: true });
+});
+
 test("end to end: -o reports the full path of the saved file", async () => {
   const dir = await mkdtemp(join(tmpdir(), "ant-out-"));
   const { code, stderr } = await ant(["https://www.youtube.com/watch?v=abc", "-o", "notes.md"], dir);

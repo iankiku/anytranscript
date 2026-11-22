@@ -662,10 +662,17 @@ in, usually the project you have open.
 TypeScript, ESM, **no runtime dependencies**. The published package is `dist/`
 and this README — nothing is pulled in at install time.
 
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the full picture: what
-yt-dlp, ffmpeg and Whisper do and what this package adds, how a link, a file
-and a list flow through the code, a map of every module, and what leaves the
-machine.
+```
+src/
+  cli.ts          argument parsing (node:util parseArgs) and the exit contract
+  transcribe.ts   the orchestrator — the decision tree in "How it works"
+  ytdlp.ts        binary resolution, metadata, captions, audio extraction
+  whisper.ts      backend selection + whisper.cpp / OpenAI / Groq adapters
+  vtt.ts          WEBVTT parsing and the rolling-duplicate collapse
+  cache.ts        ~/.cache/anytranscript, resumable downloads
+  proc.ts         spawn helpers, CommandError
+  types.ts        the public shapes
+```
 
 ### Design decisions worth knowing
 
@@ -700,13 +707,13 @@ user's browser cookies.
 ```bash
 npm install
 npm run build      # tsc → dist/
-npm test           # node --test, offline; stand-ins replace yt-dlp, ffmpeg, whisper.cpp
+npm test           # node --test, unit tests over the VTT parser
 npm link           # put `anytranscript` on PATH from source
 ```
 
-The CLI and the MCP server are tested as real child processes, with stand-in
-programs in `test/fixtures/` for yt-dlp, ffmpeg and whisper.cpp. Changes to
-those adapters are also run against a real link or file before merging.
+The VTT parser is the part with real logic and no I/O, so that's where the
+tests are. The yt-dlp and Whisper layers are thin adapters over external
+processes and are verified end-to-end against live URLs instead.
 
 ---
 

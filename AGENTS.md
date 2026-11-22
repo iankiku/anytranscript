@@ -22,11 +22,7 @@ runs `ant mcp` through `npx` and adds a skill, `plugin/skills/anytranscript/SKIL
 
 ## Map
 
-The full picture, including what the outside tools do and what this package
-adds, is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Short version:
-
-- `src/transcribe.ts`: one video or file, captions first, Whisper second. Start here.
-- `src/local.ts`: files on this computer (path rules, ffmpeg audio extraction).
+- `src/transcribe.ts`: one video, captions first, Whisper second. Start here.
 - `src/ytdlp.ts`, `src/whisper.ts`, `src/proc.ts`: the external programs.
 - `src/format.ts`, `src/xlsx.ts`, `src/zip.ts`: export formats.
 - `src/scheduler.ts`, `src/retry.ts`, `src/batch.ts`: bulk runs (queue, retry rules, resume).

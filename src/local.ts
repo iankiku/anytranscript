@@ -4,9 +4,9 @@
  */
 
 import { existsSync } from "node:fs";
-import { stat } from "node:fs/promises";
-import { homedir } from "node:os";
-import { basename, extname, isAbsolute, resolve } from "node:path";
+import { open, stat } from "node:fs/promises";
+import { homedir, platform } from "node:os";
+import { basename, dirname, extname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { CommandError, type Deadline, run } from "./proc.js";
 import type { VideoInfo } from "./types.js";
@@ -60,6 +60,9 @@ export async function localMediaPath(input: string): Promise<string | null> {
       if (info.isDirectory()) throw new InvalidUrlError(input, "it is a folder; give one video or audio file");
       if (!info.isFile()) throw new InvalidUrlError(input, "it isn't a regular file");
       if (info.size === 0) throw new InvalidUrlError(input, "the file is empty");
+      // macOS privacy rules let a program see a file in Downloads, Desktop or
+      // Documents but not open it, so check reading too, before any work.
+      await (await open(candidate, "r")).close();
       return candidate;
     } catch (error) {
       if (error instanceof InvalidUrlError) throw error;
@@ -67,14 +70,25 @@ export async function localMediaPath(input: string): Promise<string | null> {
     }
   }
 
-  if (lastError?.code === "EPERM" || lastError?.code === "EACCES") {
-    throw new InvalidUrlError(
-      input,
-      "this program isn't allowed to read that file. On macOS, allow your terminal or app under " +
-        "System Settings > Privacy & Security > Files and Folders, or move the file somewhere else",
-    );
-  }
+  if (lastError?.code === "EPERM" || lastError?.code === "EACCES") throw new FileAccessError(path, blockedReason(path));
   throw new InvalidUrlError(input, `there is no file at ${path}`);
+}
+
+/** The file exists but can't be opened. Never retried, like a bad link. */
+export class FileAccessError extends InvalidUrlError {
+  constructor(path: string, reason: string) {
+    super(path, reason);
+    this.message = `can't read ${path}: ${reason}`;
+  }
+}
+
+function blockedReason(path: string): string {
+  if (platform() !== "darwin") return "you don't have permission to read that file";
+  return (
+    `macOS isn't letting this app read files in ${basename(dirname(path))}. Open System Settings > ` +
+    "Privacy & Security > Files and Folders, find the app you ran this from (Terminal, iTerm, VS Code, " +
+    "Claude...) and turn on that folder, then run it again. Or move the file to another folder"
+  );
 }
 
 /** What the rest of the pipeline needs to know about a local file. */
@@ -134,6 +148,9 @@ export async function extractAudio(
     }
     if (error instanceof CommandError && /matches no streams|does not contain any stream/i.test(error.stderr)) {
       throw new Error(`${basename(input)} has no audio track, so there is nothing to transcribe.`);
+    }
+    if (error instanceof CommandError && /Operation not permitted|Permission denied/i.test(error.stderr)) {
+      throw new FileAccessError(input, blockedReason(input));
     }
     if (error instanceof CommandError && /Invalid data found when processing input/i.test(error.stderr)) {
       throw new Error(`${basename(input)} isn't a video or audio file ffmpeg can read.`);

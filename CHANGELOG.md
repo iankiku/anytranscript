@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A file macOS won't let your terminal read (often in Downloads, Desktop or
+  Documents) now stops straight away with `can't read <path>` and where to
+  turn access on, instead of an ffmpeg error after the run starts.
 - `-o` and `--json` create missing folders. `ant <url> -o notes/talk.md`
   used to transcribe the whole video, then fail with `ENOENT` when `notes/`
   didn't exist.

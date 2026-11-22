@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -94,6 +94,19 @@ test("bad paths fail with exit 1 and a reason, before any work", async () => {
     assert.match(stderr, /not a valid video URL or file/);
     assert.match(stderr, reason, input);
   }
+});
+
+test("a file this program can't read stops before any work, with how to fix it", async (t) => {
+  if (process.getuid?.() === 0) return t.skip("root reads everything");
+  const locked = join(dir, "locked.mov");
+  await writeFile(locked, "media");
+  await chmod(locked, 0o000);
+  const { code, stderr } = await ant([locked]);
+  await chmod(locked, 0o644);
+  assert.equal(code, 1);
+  assert.match(stderr, new RegExp(`can't read ${locked}: `));
+  assert.match(stderr, process.platform === "darwin" ? /Privacy & Security > Files and Folders/ : /permission to read/);
+  assert.doesNotMatch(stderr, /ffmpeg exited/);
 });
 
 test("a file with no audio track says so", async () => {

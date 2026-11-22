@@ -67,7 +67,7 @@ test("end to end: a non-link fails with exit 1 and a clear message", async () =>
   const { code, stdout, stderr } = await ant(["not a link"]);
   assert.equal(code, 1);
   assert.equal(stdout, "");
-  assert.match(stderr, /not a valid video URL: "not a link" \(it contains spaces/);
+  assert.match(stderr, /not a valid video URL or file: "not a link" \(it contains spaces/);
   assert.doesNotMatch(stderr, /yt-dlp/);
 });
 

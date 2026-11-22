@@ -62,6 +62,8 @@ export interface TranscribeOptions extends AuthOptions {
   ytdlpPath?: string;
   /** Override the whisper.cpp binary instead of letting it be resolved. */
   whisperPath?: string;
+  /** Override the ffmpeg binary used for files on this computer. */
+  ffmpegPath?: string;
   /** Called with human-readable progress lines. */
   onProgress?: (message: string) => void;
   /** Cancel the run: in-flight yt-dlp, whisper.cpp and upload steps are stopped. */

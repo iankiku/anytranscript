@@ -1,6 +1,6 @@
 ---
 name: anytranscript
-description: Get the transcript of a video from its URL (YouTube, TikTok, Instagram, Vimeo, X, and most video sites), with timestamps, or transcribe a whole list of videos into a folder. Saves each transcript as a Markdown document in the user's working folder (or a CSV, Excel/Google Sheets, SRT/VTT or JSON file) and returns its full path to link. Use whenever the user shares a video link and wants to know what was said, wants a summary, quotes, notes or subtitles from a video, or asks to transcribe, caption or "get the text of" one or more videos.
+description: Get the transcript of a video from its URL (YouTube, TikTok, Instagram, Vimeo, X, and most video sites), with timestamps, or of a video or audio file on the user's computer (.mov, .mp4, .m4a, .mp3...), or transcribe a whole list of videos into a folder. Saves each transcript as a Markdown document in the user's working folder (or a CSV, Excel/Google Sheets, SRT/VTT or JSON file) and returns its full path to link. Use whenever the user shares a video link and wants to know what was said, wants a summary, quotes, notes or subtitles from a video, or asks to transcribe, caption or "get the text of" one or more videos.
 ---
 
 # anytranscript
@@ -30,6 +30,7 @@ even when they only asked a question about the video. Then answer from the resul
 | The user wants | Call |
 |---|---|
 | One video: what it says, a summary, quotes, notes | `transcribe` with `url` |
+| A video or audio file on their computer | `transcribe` with the file's full path as `url` |
 | A spreadsheet | `format: "xlsx"` (Excel; imports into Google Sheets) or `"csv"` |
 | Subtitles | `format: "srt"` or `"vtt"` |
 | Several or many videos | `transcribe_many` with `urls` and `format: "md"` |
@@ -81,6 +82,8 @@ retries the rest; pass `force: true` to redo everything.
 - A video with no captions takes a few minutes per 10 minutes of audio on a laptop.
   Say so before starting a long one.
 - For sensitive content, pass `backend: "local"`: nothing leaves the machine.
+- A file on the computer always goes through speech recognition, since it has
+  no platform captions. It needs `ffmpeg` installed.
 - Not the user's language? Pass `lang` (`es`, `fr`, `de`...).
 - If these tools aren't available, use the command line from the user's working
   folder, not a temporary one:

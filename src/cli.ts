@@ -20,11 +20,13 @@ const BACKENDS: WhisperBackend[] = ["auto", "local", "openai", "groq"];
 
 const HELP = `
   ant <url> [options]          (anytranscript <url> works too)
+  ant <file> [options]         a video or audio file on this computer
   ant <url> <url>... [options]  many videos, one file each
   ant -i urls.txt [options]     URLs from a file, one per line (- for stdin)
   ant mcp                       run as an MCP server, for AI agents (stdio)
 
-  Extract a text transcript from an Instagram, TikTok, or YouTube video URL.
+  Extract a text transcript from an Instagram, TikTok, or YouTube video URL,
+  or from a video or audio file (.mov, .mp4, .m4a, .mp3, .wav...).
   Uses the platform's own captions when they exist; otherwise downloads the
   audio and transcribes it with Whisper.
 
@@ -83,6 +85,7 @@ const HELP = `
     ant "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     ant "https://www.tiktok.com/@user/video/123" -o out.txt
     ant "<url>" -t                          # timestamped lines on stdout
+    ant ~/Downloads/IMG_2509.MOV -o notes.md # a video on this computer
     ant "<url>" -o notes.md                 # Markdown, picked from the extension
     ant "<url>" -f csv > segments.csv
     ant "<reel-url>" --cookies-from-browser chrome --model medium

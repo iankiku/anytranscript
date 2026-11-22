@@ -23,7 +23,8 @@ const MODELS: ModelSize[] = ["tiny", "base", "small", "medium", "large-v3"];
 const BACKENDS: WhisperBackend[] = ["auto", "local", "openai", "groq"];
 
 const INSTRUCTIONS =
-  "Use `transcribe` for one video URL (YouTube, TikTok, Instagram, and most video sites), instead of a web " +
+  "Use `transcribe` for one video URL (YouTube, TikTok, Instagram, and most video sites) or one video or audio " +
+  "file on this computer (pass its full path as `url`), instead of a web " +
   "search: it returns the transcript with [mm:ss] timestamps plus the video's title and channel, and saves a " +
   "Markdown document in transcripts/ in the user's working folder (or md, csv, xlsx, srt, vtt, json, txt). " +
   "Start your reply with the returned `link` so the user can open the document. Use `transcribe_many` for a " +
@@ -58,14 +59,17 @@ const TOOLS = [
     name: "transcribe",
     title: "Transcribe a video",
     description:
-      "Get the transcript of one video URL, with timestamps, title and channel. Uses the platform's captions " +
-      "when they exist, otherwise transcribes the audio with Whisper. Use it instead of a web search for what a video says. " +
+      "Get the transcript of one video URL, or of a video or audio file on this computer, with timestamps, title " +
+      "and channel. Uses the platform's captions when they exist, otherwise transcribes the audio with Whisper. Use it instead of a web search for what a video says. " +
       "By default it also saves a Markdown document in transcripts/ in the user's working folder and returns its full path " +
       "and a ready-made Markdown link to show the user.",
     inputSchema: {
       type: "object",
       properties: {
-        url: { type: "string", description: "The video URL." },
+        url: {
+          type: "string",
+          description: "The video URL, or the full path to a video or audio file on this computer (.mov, .mp4, .m4a, .mp3...).",
+        },
         format: {
           type: "string",
           enum: OUTPUT_FORMATS,
@@ -92,13 +96,13 @@ const TOOLS = [
     name: "transcribe_many",
     title: "Transcribe a list of videos",
     description:
-      "Transcribe many video URLs into a folder, one file per video, with retries, a limit on parallel downloads, " +
+      "Transcribe many video URLs or local video/audio files into a folder, one file per video, with retries, a limit on parallel downloads, " +
       "and resume: videos already done in that folder are skipped. Returns each file's full path, an index.csv " +
       "summary and a failed.txt list to retry. Can take minutes; progress is reported per video.",
     inputSchema: {
       type: "object",
       properties: {
-        urls: { type: "array", items: { type: "string" }, minItems: 1, description: "The video URLs." },
+        urls: { type: "array", items: { type: "string" }, minItems: 1, description: "Video URLs or full paths to local video/audio files." },
         outDir: { type: "string", description: "Folder for the files. Leave unset to use transcripts/ in the user's working folder. Never a temp folder." },
         format: { type: "string", enum: OUTPUT_FORMATS, description: "File format for each video. Default md." },
         concurrency: { type: "integer", minimum: 1, description: "Videos at once. Default 3." },

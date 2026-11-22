@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { cacheDir, ensureDownloaded, huggingFaceSha256 } from "./cache.js";
+import { cacheDir, ensureDownloaded, exists, huggingFaceSha256 } from "./cache.js";
 import { type Deadline, deadline, isRunnable, run } from "./proc.js";
 import { createLimiter } from "./scheduler.js";
 import type { ModelSize, Segment, WhisperBackend } from "./types.js";
@@ -101,9 +101,12 @@ export async function ensureModel(
 ): Promise<string> {
   const file = `ggml-${size}.bin`;
   const url = `${MODEL_BASE}/${file}`;
+  const dest = cacheDir("models", file);
+  // Already downloaded and verified: skip the checksum lookup's network call.
+  if (await exists(dest)) return dest;
   const sha256 = await huggingFaceSha256(url);
 
-  return ensureDownloaded(url, cacheDir("models", file), {
+  return ensureDownloaded(url, dest, {
     ...(sha256 ? { sha256 } : {}),
     onProgress,
     label: `Whisper model "${size}" (first run only)`,

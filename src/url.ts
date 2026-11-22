@@ -1,12 +1,12 @@
-/** Thrown when the input can't be a video link, before anything is downloaded. */
+/** Thrown when the input can't be a video link or file, before anything is downloaded. */
 export class InvalidUrlError extends Error {
   constructor(
     readonly input: string,
     reason: string,
   ) {
     super(
-      `not a valid video URL: ${JSON.stringify(input)} (${reason}). ` +
-        "Expected a link like https://www.youtube.com/watch?v=VIDEO_ID",
+      `not a valid video URL or file: ${JSON.stringify(input)} (${reason}). ` +
+        "Expected a link like https://www.youtube.com/watch?v=VIDEO_ID or the path to a video or audio file",
     );
     this.name = "InvalidUrlError";
   }
@@ -19,15 +19,19 @@ const KEY_PREFIX = /^\s*["'`‘“]?\s*url\s*[=:]\s*/i;
 const TRAILING_PUNCTUATION = /[.,;!?]+$/;
 const BARE_HOST = /^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:[/?#:]|$)/i;
 
+/** Drop quotes (straight or curly), a `url=` prefix, spaces and invisible characters. */
+export function tidyInput(input: string): string {
+  const unwrapped = input.replace(INVISIBLE, "").replace(WRAPPERS, "");
+  return unwrapped.replace(KEY_PREFIX, "").replace(WRAPPERS, "");
+}
+
 /**
  * Tidy what a person typed or pasted, without judging it: drops quotes (straight
  * or curly), a `url=` prefix, surrounding spaces, invisible characters and
  * trailing sentence punctuation, and adds `https://` to a bare `youtube.com/...`.
  */
 export function tidyUrl(input: string): string {
-  let url = input.replace(INVISIBLE, "").replace(WRAPPERS, "");
-  url = url.replace(KEY_PREFIX, "").replace(WRAPPERS, "");
-  url = url.replace(TRAILING_PUNCTUATION, "");
+  let url = tidyInput(input).replace(TRAILING_PUNCTUATION, "");
   if (!/^[a-z][a-z0-9+.-]*:/i.test(url) && BARE_HOST.test(url)) url = `https://${url}`;
   return url;
 }

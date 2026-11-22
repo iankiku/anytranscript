@@ -23,6 +23,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Transcribe video and audio files on your computer**, not only links:
+  `ant ~/Downloads/IMG_2509.MOV -o notes.md`. Any file ffmpeg reads works
+  (`.mov`, `.mp4`, `.m4a`, `.mp3`, `.wav`...), given as a plain, relative,
+  `~/`, quoted or `file://` path. The MCP tools take a file path in `url` and
+  `urls` too, and so does a bulk list. A missing file, a folder, an empty file
+  or a file with no audio track exits 1 and says which.
+
+### Changed
+
+- Runs with a Whisper model already downloaded no longer look up its checksum
+  online first.
+
 ## [1.2.0] - 2026-11-19
 
 Transcripts arrive as Markdown documents you can open in Claude Code or

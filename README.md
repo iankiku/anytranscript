@@ -5,7 +5,7 @@
 **Video links in, transcripts you can research with out.**
 
 A plugin for Claude Code and Codex, and a command-line tool.<br>
-One link or a thousand. Timestamps on every line. Saved as a Markdown document you can open right in Claude or Codex.
+One link or a thousand, or a video file on your computer. Timestamps on every line. Saved as a Markdown document you can open right in Claude or Codex.
 
 <br>
 
@@ -328,6 +328,23 @@ ant "<reel-url>" --cookies-from-browser chrome
 ant "<url>" --model medium
 ```
 
+### Files on your computer
+
+Give a path instead of a link. Phone recordings, Zoom exports, voice memos and
+podcasts all work: anything ffmpeg reads (`.mov`, `.mp4`, `.m4a`, `.mp3`,
+`.wav`...).
+
+```bash
+ant ~/Downloads/IMG_2509.MOV -o notes.md
+ant "./My Interview.m4a" -t
+ant recordings/*.mp3 -d notes -f md     # many files, one transcript each
+```
+
+A file has no platform captions, so it always goes through Whisper. ffmpeg
+reads the audio track straight from the file; nothing is downloaded except the
+Whisper model on first use. In Claude Code or Codex, ask for the file by path:
+"transcribe ~/Downloads/IMG_2509.MOV".
+
 ### Many videos at once
 
 Pass several URLs, or a file with one URL per line (`#` comments and blank
@@ -627,7 +644,7 @@ starts faster.
 
 | Tool | What it does | Returns |
 |---|---|---|
-| `transcribe` | One video. Saves a Markdown document into `outDir` (default `./transcripts`) unless `save: false`; `format` picks another type, `saveAs` an exact path | `title`, `url`, `channel`, `duration`, `source`, `language`, `file` (full path or `null`), `link` (a Markdown link to it), `transcript` (`[mm:ss]` lines) |
+| `transcribe` | One video, by link or by the full path to a file on the computer. Saves a Markdown document into `outDir` (default `./transcripts`) unless `save: false`; `format` picks another type, `saveAs` an exact path | `title`, `url`, `channel`, `duration`, `source`, `language`, `file` (full path or `null`), `link` (a Markdown link to it), `transcript` (`[mm:ss]` lines) |
 | `transcribe_many` | A list of `urls` into `outDir`, one file per video in `format` (default `md`), with the same retries, spacing and resume as `ant -i` | `outDir`, `index` (index.csv), `failedList`, counts, and per URL: `status`, `title`, `file`, `link`, `error` |
 
 Both take `lang`, `model`, `backend`, `whisperOnly`, `captionsOnly`,

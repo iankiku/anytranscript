@@ -10,6 +10,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { looksLikeFile, toPath } from "./local.js";
 import { tidyUrl } from "./url.js";
 import { exists } from "./cache.js";
 import { csvRow, type FormatOptions, type OutputFormat, renderTranscript } from "./format.js";
@@ -182,7 +183,8 @@ export async function transcribeMany(urls: string[], options: BatchOptions): Pro
     ...transcribeOptions
   } = options;
 
-  const unique = [...new Set(urls.map(tidyUrl).filter(Boolean))];
+  const key = (input: string) => (looksLikeFile(input) ? toPath(input) : tidyUrl(input));
+  const unique = [...new Set(urls.map(key).filter(Boolean))];
   const total = unique.length;
   await mkdir(outDir, { recursive: true });
 

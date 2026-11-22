@@ -1,11 +1,13 @@
 /**
  * The orchestrator: captions first when the platform actually has them (fast
- * and free), audio + Whisper otherwise.
+ * and free), audio + Whisper otherwise. A file on this computer goes straight
+ * to ffmpeg + Whisper.
  */
 
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { extractAudio, localInfo, localMediaPath } from "./local.js";
 import type { Transcript, TranscribeOptions } from "./types.js";
 import { parseVideoUrl } from "./url.js";
 import { vttToSegments } from "./vtt.js";
@@ -24,13 +26,16 @@ export class NoCaptionsError extends Error {
 }
 
 /**
- * Pull a transcript out of any URL yt-dlp can reach.
+ * Pull a transcript out of any URL yt-dlp can reach, or out of a video or
+ * audio file on this computer.
  *
  * @example
  * const { text } = await transcribe("https://www.youtube.com/watch?v=...");
+ * const memo = await transcribe("~/Downloads/voice-memo.m4a");
  */
 export async function transcribe(input: string, options: TranscribeOptions = {}): Promise<Transcript> {
-  const url = parseVideoUrl(input);
+  const file = await localMediaPath(input);
+  const url = file ?? parseVideoUrl(input);
   const {
     lang = "en",
     model = "small",
@@ -41,6 +46,7 @@ export async function transcribe(input: string, options: TranscribeOptions = {})
     workdir: requestedWorkdir,
     ytdlpPath,
     whisperPath,
+    ffmpegPath,
     onProgress = () => {},
     signal,
     timeoutMs,
@@ -55,6 +61,24 @@ export async function transcribe(input: string, options: TranscribeOptions = {})
   await mkdir(workdir, { recursive: true });
 
   try {
+    if (file) {
+      if (captionsOnly) throw new NoCaptionsError(file, "a file on this computer has no platform captions");
+      const engine = await selectBackend(backend, whisperPath);
+      onProgress(`file: ${file}`);
+      onProgress(`reading the audio track, then transcribing (${engine}, ${model})...`);
+      const audio = await extractAudio(file, join(workdir, "audio"), engine === "local" ? "wav16" : "mp3", {
+        ffmpegPath,
+        ...limits,
+      });
+      media.push(audio.path);
+      const result =
+        engine === "local"
+          ? await transcribeLocal(audio.path, { model, lang, binary: whisperPath, onProgress, signal })
+          : await transcribeHosted(audio.path, engine, { lang, ...limits });
+      onProgress(`done via ${engine}, ${result.text.length} chars.`);
+      return { ...result, source: "whisper", info: localInfo(file, audio.duration) };
+    }
+
     const bin = await resolveYtDlp(ytdlpPath, onProgress);
     signal?.throwIfAborted();
     const info = await getInfo(bin, url, auth, limits);

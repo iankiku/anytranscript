@@ -8,12 +8,13 @@ import { after, before, test } from "node:test";
 
 const CLI = new URL("../dist/cli.js", import.meta.url).pathname;
 const FAKE_YTDLP = new URL("./fixtures/fake-yt-dlp.mjs", import.meta.url).pathname;
+const FAKE_FFMPEG = new URL("./fixtures/fake-ffmpeg.mjs", import.meta.url).pathname;
 
 /** A running `ant mcp` server, spoken to over stdio like an MCP client would. */
 function startServer(cwd) {
   const child = spawn(process.execPath, [CLI, "mcp"], {
     cwd,
-    env: { ...process.env, ANYTRANSCRIPT_YTDLP: FAKE_YTDLP },
+    env: { ...process.env, ANYTRANSCRIPT_YTDLP: FAKE_YTDLP, ANYTRANSCRIPT_FFMPEG: FAKE_FFMPEG },
     stdio: ["pipe", "pipe", "pipe"],
   });
   const waiting = new Map();
@@ -70,6 +71,7 @@ test("initialize names the server and offers tools", async () => {
   assert.equal(result.serverInfo.name, "anytranscript");
   assert.deepEqual(result.capabilities, { tools: {} });
   assert.match(result.instructions, /transcribe_many/);
+  assert.match(result.instructions, /save_video/);
 });
 
 test("an unknown protocol version gets the newest one this server speaks", async () => {
@@ -78,14 +80,36 @@ test("an unknown protocol version gets the newest one this server speaks", async
   assert.notEqual(result.protocolVersion, "1999-01-01");
 });
 
-test("tools/list describes both tools with input schemas", async () => {
+test("tools/list describes every tool with input schemas", async () => {
   const { result } = await server.request("tools/list");
   const byName = Object.fromEntries(result.tools.map((t) => [t.name, t]));
-  assert.deepEqual(Object.keys(byName).sort(), ["transcribe", "transcribe_many"]);
+  assert.deepEqual(Object.keys(byName).sort(), ["save_video", "transcribe", "transcribe_many"]);
+  assert.deepEqual(byName.save_video.inputSchema.required, ["url"]);
   assert.deepEqual(byName.transcribe.inputSchema.required, ["url"]);
   assert.deepEqual(byName.transcribe_many.inputSchema.required, ["urls"]);
   assert.ok(byName.transcribe.inputSchema.properties.format.enum.includes("xlsx"));
   assert.ok(byName.transcribe.annotations.readOnlyHint === false);
+});
+
+test("save_video saves the video in videos/ and, with frames, every still and its time", async () => {
+  const plain = payload(await call(server, "save_video", { url: "https://www.youtube.com/watch?v=abc" }));
+  assert.equal(plain.video, join(dir, "videos", "talk-abc-abc.mp4"));
+  assert.equal(plain.link, `[Talk abc](${plain.video})`);
+  assert.equal(plain.framesDir, null);
+  assert.deepEqual(plain.frames, []);
+
+  const data = payload(await call(server, "save_video", { url: "https://www.youtube.com/watch?v=abc", every: 2, maxFrames: 2, outDir: "refs" }));
+  const framesDir = join(dir, "refs", "talk-abc-abc-frames");
+  assert.equal(data.framesDir, framesDir);
+  assert.equal(data.framesIndex, join(framesDir, "frames.json"));
+  assert.deepEqual(data.frames, [
+    { file: join(framesDir, "frame-0001.jpg"), time: 0 },
+    { file: join(framesDir, "frame-0002.jpg"), time: 2.5 },
+  ]);
+
+  const bad = await call(server, "save_video", { url: "https://www.youtube.com/watch?v=abc", every: 0 });
+  assert.equal(bad.isError, true);
+  assert.match(bad.content[0].text, /Invalid arguments: every must be a number of at least 0.01/);
 });
 
 test("transcribe saves a Markdown document by default and returns a link to it", async () => {

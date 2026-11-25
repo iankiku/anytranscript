@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--max-frames` caps the count (default 60). A file on this computer gets
   frames without being copied. In the library: `saveVideo()` and
   `extractFrames()`.
+- **For agents: a `save_video` MCP tool** that does the same and returns the
+  video's path and every frame with its time. The plugin's skill uses it when
+  you ask for a video, or for stills to copy a style or layout.
 
 ### Added
 

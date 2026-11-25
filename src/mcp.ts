@@ -17,6 +17,7 @@ import { transcribeMany, transcriptName } from "./batch.js";
 import { formatFromPath, formatTranscript, OUTPUT_FORMATS, type OutputFormat, renderTranscript } from "./format.js";
 import { NoCaptionsError, transcribe } from "./transcribe.js";
 import type { ModelSize, TranscribeOptions, WhisperBackend } from "./types.js";
+import { saveVideo } from "./video.js";
 
 const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 const MODELS: ModelSize[] = ["tiny", "base", "small", "medium", "large-v3"];
@@ -29,11 +30,13 @@ const INSTRUCTIONS =
   "Markdown document in transcripts/ in the user's working folder (or md, csv, xlsx, srt, vtt, json, txt). " +
   "Start your reply with the returned `link` so the user can open the document. Use `transcribe_many` for a " +
   "list of URLs: it saves one file per video into a folder and returns every file path plus an index.csv " +
-  "summary. Re-running transcribe_many with the same folder skips videos already done. Don't pass a folder " +
+  "summary. Re-running transcribe_many with the same folder skips videos already done. Use `save_video` when " +
+  "the user wants the video itself, or stills from it to study its look (layout, type, colour, cuts): it saves " +
+  "the MP4 in videos/ and, with frames, a JPEG per scene change plus frames.json with each frame's time. Don't pass a folder " +
   "unless the user names one, and never use a temporary folder. Quote timestamps when citing what someone " +
   "said. If Instagram fails with a login error, retry with cookiesFromBrowser set to the user's browser.";
 
-/** Options shared by both tools, as JSON Schema. */
+/** Options shared by the two transcribe tools, as JSON Schema. */
 const SHARED = {
   lang: { type: "string", description: "Caption/transcription language code. Default en." },
   model: { type: "string", enum: MODELS, description: "Whisper model when there are no captions. Default small." },
@@ -112,6 +115,29 @@ const TOOLS = [
         ...SHARED,
       },
       required: ["urls"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  },
+  {
+    name: "save_video",
+    title: "Save a video and its frames",
+    description:
+      "Save the whole video from a URL as an MP4, and optionally still frames from it (one per scene change, or one " +
+      "every N seconds) with frames.json naming each frame's time, to study how the video looks: layout, type, colour, " +
+      "cuts. A video or audio file on this computer is not copied; only its frames are saved. Returns the full path of " +
+      "the video, the frames folder and every frame.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "The video URL, or the full path to a video file on this computer." },
+        frames: { type: "boolean", description: "Also save still frames, one per scene change. Default false." },
+        every: { type: "number", exclusiveMinimum: 0, description: "One frame every this many seconds instead of per scene. Implies frames." },
+        maxFrames: { type: "integer", minimum: 1, description: "At most this many frames. Default 60." },
+        outDir: { type: "string", description: "Folder for the video and frames. Leave unset to use videos/ in the user's working folder. Never a temp folder." },
+        cookiesFromBrowser: SHARED.cookiesFromBrowser,
+      },
+      required: ["url"],
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
@@ -278,9 +304,38 @@ async function callTranscribeMany(args: Args, { signal, progress }: CallContext)
   };
 }
 
+async function callSaveVideo(args: Args, { signal }: CallContext): Promise<unknown> {
+  const url = str(args, "url", true)!;
+  const every = num(args, "every", { min: 0.01 });
+  const maxFrames = num(args, "maxFrames", { integer: true, min: 1 });
+  const cookiesFromBrowser = str(args, "cookiesFromBrowser");
+  const saved = await saveVideo(url, {
+    dir: str(args, "outDir") ?? "videos",
+    frames: bool(args, "frames") ?? false,
+    ...(every !== undefined ? { every } : {}),
+    ...(maxFrames !== undefined ? { maxFrames } : {}),
+    ...(cookiesFromBrowser ? { cookiesFromBrowser } : {}),
+    signal,
+    onProgress: log,
+  });
+  const { info } = saved;
+  return {
+    title: info.title,
+    url: info.webpageUrl,
+    channel: info.uploader,
+    duration: info.duration,
+    video: saved.video,
+    link: markdownLink(info.title, saved.video),
+    framesDir: saved.framesDir ?? null,
+    framesIndex: saved.framesDir ? join(saved.framesDir, "frames.json") : null,
+    frames: saved.frames ?? [],
+  };
+}
+
 const HANDLERS: Record<string, (args: Args, context: CallContext) => Promise<unknown>> = {
   transcribe: callTranscribe,
   transcribe_many: callTranscribeMany,
+  save_video: callSaveVideo,
 };
 
 function hint(error: Error): string {

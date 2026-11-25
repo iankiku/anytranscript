@@ -1,11 +1,11 @@
 ---
 name: anytranscript
-description: Get the transcript of a video from its URL (YouTube, TikTok, Instagram, Vimeo, X, and most video sites), with timestamps, or of a video or audio file on the user's computer (.mov, .mp4, .m4a, .mp3...), or transcribe a whole list of videos into a folder. Saves each transcript as a Markdown document in the user's working folder (or a CSV, Excel/Google Sheets, SRT/VTT or JSON file) and returns its full path to link. Use whenever the user shares a video link and wants to know what was said, wants a summary, quotes, notes or subtitles from a video, or asks to transcribe, caption or "get the text of" one or more videos.
+description: Get the transcript of a video from its URL (YouTube, TikTok, Instagram, Vimeo, X, and most video sites), with timestamps, or of a video or audio file on the user's computer (.mov, .mp4, .m4a, .mp3...), or transcribe a whole list of videos into a folder, or save the video itself and still frames from it to study its look. Saves each transcript as a Markdown document in the user's working folder (or a CSV, Excel/Google Sheets, SRT/VTT or JSON file) and returns its full path to link. Use whenever the user shares a video link and wants to know what was said, wants a summary, quotes, notes or subtitles from a video, or asks to transcribe, caption or "get the text of" one or more videos, or wants to download a video or pull frames, stills or screenshots from it (to copy a style, layout or template).
 ---
 
 # anytranscript
 
-Two MCP tools from the `anytranscript` server do the work. Call them directly; don't
+Three MCP tools from the `anytranscript` server do the work. Call them directly; don't
 run a shell command for this.
 
 ## Always save a Markdown document
@@ -34,6 +34,8 @@ even when they only asked a question about the video. Then answer from the resul
 | A spreadsheet | `format: "xlsx"` (Excel; imports into Google Sheets) or `"csv"` |
 | Subtitles | `format: "srt"` or `"vtt"` |
 | Several or many videos | `transcribe_many` with `urls` and `format: "md"` |
+| The video file itself | `save_video` with `url` |
+| Stills to study the look (style, layout, type, cuts) | `save_video` with `frames: true`, or `every: 5` for one every 5 seconds |
 
 ## Tell the user where it is
 
@@ -63,6 +65,13 @@ list each file's link when there are ten or fewer. Never shorten a path.
 and one item per URL with `status` (`ok`, `skipped`, `failed`, `interrupted`), `file`,
 `link` and `error`. Running it again with the same `outDir` skips videos already done and
 retries the rest; pass `force: true` to redo everything.
+
+`save_video` returns `video` (the MP4's full path), `link`, and with frames, `framesDir`,
+`framesIndex` (frames.json) and `frames`, each with `file` and `time` in seconds. Look at
+the frames themselves (read the JPEGs) before describing a style; match a frame's
+`time` to the transcript's `[mm:ss]` to say what was on screen when something was said.
+Leave `outDir` unset: it saves to `videos/` in the user's working folder. A file on the
+computer isn't copied; only its frames are saved.
 
 ## When it fails
 

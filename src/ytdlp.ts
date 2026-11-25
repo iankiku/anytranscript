@@ -1,6 +1,6 @@
 /** Thin yt-dlp wrapper: metadata, existing captions, and best-audio download. */
 
-import { readdir, rm } from "node:fs/promises";
+import { mkdir, readdir, rm } from "node:fs/promises";
 import { arch, platform } from "node:os";
 import { join } from "node:path";
 import { cacheDir, ensureDownloaded } from "./cache.js";
@@ -237,6 +237,42 @@ export async function downloadAudio(
   const audio = await findFile(workdir, (name) => name.endsWith(`.${ext}`));
   if (!audio) throw new Error(`yt-dlp reported success but no .${ext} landed in ${workdir}`);
   return audio;
+}
+
+/**
+ * Download the whole video, picture and sound, as `<dir>/<name>.mp4`. The
+ * highest resolution wins, then H.264 at that resolution, so a 1080p video
+ * may arrive as VP9 in MP4 (browsers and VLC play it, QuickTime doesn't).
+ * A file already there from an earlier run is kept, not downloaded again.
+ */
+export async function downloadVideo(
+  bin: string,
+  url: string,
+  dir: string,
+  name: string,
+  auth: AuthOptions,
+  limits: Deadline = {},
+): Promise<string> {
+  await mkdir(dir, { recursive: true });
+  await run(bin, [
+    ...BASE_ARGS,
+    "--no-playlist",
+    "-f",
+    "bv*+ba/b",
+    "-S",
+    "res,vcodec:h264,acodec:m4a",
+    "--merge-output-format",
+    "mp4",
+    "-o",
+    join(dir, `${name}.%(ext)s`),
+    ...authArgs(auth),
+    url,
+  ], limits);
+
+  const done = (file: string) => file.startsWith(`${name}.`) && !/\.(part|ytdl|temp)$|\.f\d+\./.test(file);
+  const video = (await findFile(dir, (file) => file === `${name}.mp4`)) ?? (await findFile(dir, done));
+  if (!video) throw new Error(`yt-dlp reported success but no video named ${name}.* landed in ${dir}`);
+  return video;
 }
 
 export async function cleanup(...paths: (string | null | undefined)[]): Promise<void> {

@@ -23,8 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-25
+
+Transcribe video and audio files on your computer, not only links, and save a
+video and still frames from it to study how it looks.
+
 ### Added
 
+- **Transcribe video and audio files on your computer**, not only links:
+  `ant ~/Downloads/IMG_2509.MOV -o notes.md`. Any file ffmpeg reads works
+  (`.mov`, `.mp4`, `.m4a`, `.mp3`, `.wav`...), given as a plain, relative,
+  `~/`, quoted or `file://` path. The MCP tools take a file path in `url` and
+  `urls` too, and so does a bulk list. A missing file, a folder, an empty file
+  or a file with no audio track exits 1 and says which.
 - **Save the video itself, and still frames from it**, for studying how a
   video looks: `ant video <url> --frames -d refs` saves `refs/<name>.mp4` and
   a still at each scene change in `refs/<name>-frames/`, with `frames.json`
@@ -35,15 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **For agents: a `save_video` MCP tool** that does the same and returns the
   video's path and every frame with its time. The plugin's skill uses it when
   you ask for a video, or for stills to copy a style or layout.
-
-### Added
-
-- **Transcribe video and audio files on your computer**, not only links:
-  `ant ~/Downloads/IMG_2509.MOV -o notes.md`. Any file ffmpeg reads works
-  (`.mov`, `.mp4`, `.m4a`, `.mp3`, `.wav`...), given as a plain, relative,
-  `~/`, quoted or `file://` path. The MCP tools take a file path in `url` and
-  `urls` too, and so does a bulk list. A missing file, a folder, an empty file
-  or a file with no audio track exits 1 and says which.
 
 ### Changed
 
@@ -207,7 +209,8 @@ that history is not covered here.
 - No runtime dependencies, so the package carries no transitive supply-chain
   surface of its own.
 
-[Unreleased]: https://github.com/iankiku/anytranscript/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/iankiku/anytranscript/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/iankiku/anytranscript/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/iankiku/anytranscript/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/iankiku/anytranscript/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/iankiku/anytranscript/compare/v1.0.1...v1.0.2

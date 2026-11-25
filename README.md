@@ -666,8 +666,9 @@ starts faster.
 |---|---|---|
 | `transcribe` | One video, by link or by the full path to a file on the computer. Saves a Markdown document into `outDir` (default `./transcripts`) unless `save: false`; `format` picks another type, `saveAs` an exact path | `title`, `url`, `channel`, `duration`, `source`, `language`, `file` (full path or `null`), `link` (a Markdown link to it), `transcript` (`[mm:ss]` lines) |
 | `transcribe_many` | A list of `urls` into `outDir`, one file per video in `format` (default `md`), with the same retries, spacing and resume as `ant -i` | `outDir`, `index` (index.csv), `failedList`, counts, and per URL: `status`, `title`, `file`, `link`, `error` |
+| `save_video` | The video itself as an MP4 in `outDir` (default `./videos`), and with `frames: true` (or `every: <seconds>`) still frames, capped by `maxFrames` (default 60). A file on the computer isn't copied | `title`, `url`, `channel`, `duration`, `video`, `link`, `framesDir`, `framesIndex` (frames.json), `frames` (`file`, `time`) |
 
-Both take `lang`, `model`, `backend`, `whisperOnly`, `captionsOnly`,
+`transcribe` and `transcribe_many` take `lang`, `model`, `backend`, `whisperOnly`, `captionsOnly`,
 `cookiesFromBrowser` and `timestamps`. `transcribe` takes
 `includeTranscript: false` to return only the file path, which saves tokens
 on long videos. `transcribe_many` also takes `concurrency`, `retries`,

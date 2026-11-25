@@ -29,8 +29,9 @@ Then ask in plain words:
 
 ## What it adds
 
-- **Two tools:** `transcribe` (one video) and `transcribe_many` (a list, with
-  retries and resume). Both return the full path of every file they save.
+- **Three tools:** `transcribe` (one video), `transcribe_many` (a list, with
+  retries and resume) and `save_video` (the video itself, and still frames from
+  it). Each returns the full path of every file it saves.
 - **A skill** that tells the agent when to use them, to save a Markdown document
   in your working folder (never a temporary one) and link it by its full path,
   how to read the result, and what to do when a site asks for a login.

@@ -103,8 +103,26 @@ export function localInfo(path: string, duration: number | null): VideoInfo {
   };
 }
 
-function ffmpegBinary(explicit?: string): string {
+export function ffmpegBinary(explicit?: string): string {
   return explicit || process.env.ANYTRANSCRIPT_FFMPEG || "ffmpeg";
+}
+
+/** An ffmpeg failure on `input` as a message a person can act on, or the error itself. */
+export function ffmpegError(error: unknown, input: string): unknown {
+  if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+    return new Error(
+      "ffmpeg not found. It reads the audio and frames out of video files. Install it with " +
+        "`brew install ffmpeg` (macOS) or `apt install ffmpeg` (Linux).",
+    );
+  }
+  if (!(error instanceof CommandError)) return error;
+  if (/Operation not permitted|Permission denied/i.test(error.stderr)) {
+    return new FileAccessError(input, blockedReason(input));
+  }
+  if (/Invalid data found when processing input/i.test(error.stderr)) {
+    return new Error(`${basename(input)} isn't a video or audio file ffmpeg can read.`);
+  }
+  return error;
 }
 
 /** Seconds from ffmpeg's `Duration: 00:01:23.45` line, or null. */
@@ -140,21 +158,9 @@ export async function extractAudio(
     );
     return { path: out, duration: parseDuration(stderr) };
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new Error(
-        "ffmpeg not found. It reads the audio out of video files. Install it with " +
-          "`brew install ffmpeg` (macOS) or `apt install ffmpeg` (Linux).",
-      );
-    }
     if (error instanceof CommandError && /matches no streams|does not contain any stream/i.test(error.stderr)) {
       throw new Error(`${basename(input)} has no audio track, so there is nothing to transcribe.`);
     }
-    if (error instanceof CommandError && /Operation not permitted|Permission denied/i.test(error.stderr)) {
-      throw new FileAccessError(input, blockedReason(input));
-    }
-    if (error instanceof CommandError && /Invalid data found when processing input/i.test(error.stderr)) {
-      throw new Error(`${basename(input)} isn't a video or audio file ffmpeg can read.`);
-    }
-    throw error;
+    throw ffmpegError(error, input);
   }
 }

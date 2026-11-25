@@ -18,7 +18,7 @@ import { runTasks } from "./scheduler.js";
 import { buildWorkbook } from "./xlsx.js";
 import { isRateLimited, isRetryable, siteKey } from "./retry.js";
 import { transcribe } from "./transcribe.js";
-import type { Transcript, TranscribeOptions } from "./types.js";
+import type { Transcript, TranscribeOptions, VideoInfo } from "./types.js";
 import { summarizeCommandError } from "./ytdlp.js";
 
 export interface BatchOptions extends Omit<TranscribeOptions, "onProgress" | "signal" | "timeoutMs"> {
@@ -104,7 +104,12 @@ export function parseUrlList(text: string): string[] {
 
 /** A short, filesystem-safe name: `me-at-the-zoo-jNQXAC9IVRw`. */
 export function transcriptName(transcript: Transcript, url: string): string {
-  const slug = transcript.info.title
+  return mediaName(transcript.info, url);
+}
+
+/** The same name for any video: its title as a slug, then its id (or a hash of the link). */
+export function mediaName(info: VideoInfo, url: string): string {
+  const slug = info.title
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
@@ -112,7 +117,7 @@ export function transcriptName(transcript: Transcript, url: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 60)
     .replace(/-+$/, "");
-  const rawId = transcript.info.id.replace(/[^A-Za-z0-9_-]/g, "");
+  const rawId = info.id.replace(/[^A-Za-z0-9_-]/g, "");
   const id =
     rawId && rawId !== "unknown" ? rawId : createHash("sha256").update(url).digest("hex").slice(0, 10);
   return slug ? `${slug}-${id}` : id;

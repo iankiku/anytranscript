@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Stands in for yt-dlp so the CLI can be driven end to end offline. It knows
 // two kinds of video: ones with captions, and `v=dead`, which is unavailable.
+// Asked for the whole video, it writes a small stand-in MP4.
 import { writeFileSync } from "node:fs";
 
 const args = process.argv.slice(2);
@@ -22,6 +23,9 @@ if (args.includes("--dump-single-json")) {
   const template = args[args.indexOf("-o") + 1];
   const vtt = `WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nhello from ${id}\n\n00:01:05.000 --> 00:01:08.000\nthe end\n`;
   writeFileSync(template.replace("%(id)s.%(ext)s", `${id}.en.vtt`), vtt);
+} else if (args.includes("--merge-output-format")) {
+  const template = args[args.indexOf("-o") + 1];
+  writeFileSync(template.replace("%(ext)s", "mp4"), `video of ${id}`);
 } else {
   console.error("fake yt-dlp: unexpected call");
   process.exit(3);

@@ -345,6 +345,26 @@ reads the audio track straight from the file; nothing is downloaded except the
 Whisper model on first use. In Claude Code or Codex, ask for the file by path:
 "transcribe ~/Downloads/IMG_2509.MOV".
 
+### The video itself, and still frames
+
+To study how a video looks (its layout, type, colour and cuts), save the video
+and stills from it:
+
+```bash
+ant video "<url>"                        # the video, as videos/<title>-<id>.mp4
+ant video "<url>" --frames -d refs       # plus a still at each scene change
+ant video "<url>" --every 5              # a still every 5 seconds instead
+ant video ~/Downloads/IMG_2509.MOV --frames   # a file here: frames only, no copy
+```
+
+Frames go in `<name>-frames/` next to the video, as `frame-0001.jpg`..., with
+`frames.json` naming each frame's time in seconds, so a frame lines up with the
+transcript. The first frame is always kept, and `--max-frames` (default 60)
+caps the count. stdout lists the video, then its frames folder. The highest
+resolution wins, then H.264 at that resolution, so a 1080p video can arrive as
+VP9 in MP4, which browsers and VLC play but QuickTime doesn't. Save only videos
+you have the right to keep.
+
 ### Many videos at once
 
 Pass several URLs, or a file with one URL per line (`#` comments and blank

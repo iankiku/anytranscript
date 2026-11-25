@@ -14,6 +14,7 @@ import { formatFromPath, OUTPUT_FORMATS, type OutputFormat, renderTranscript } f
 import { serveMcp } from "./mcp.js";
 import { NoCaptionsError, transcribe } from "./transcribe.js";
 import type { ModelSize, WhisperBackend } from "./types.js";
+import { saveVideo } from "./video.js";
 
 const MODELS: ModelSize[] = ["tiny", "base", "small", "medium", "large-v3"];
 const BACKENDS: WhisperBackend[] = ["auto", "local", "openai", "groq"];
@@ -24,6 +25,7 @@ const HELP = `
   ant <url> <url>... [options]  many videos, one file each
   ant -i urls.txt [options]     URLs from a file, one per line (- for stdin)
   ant mcp                       run as an MCP server, for AI agents (stdio)
+  ant video <url|file> [--frames]  save the video itself, and still frames
 
   Extract a text transcript from an Instagram, TikTok, or YouTube video URL,
   or from a video or audio file (.mov, .mp4, .m4a, .mp3, .wav...).
@@ -66,6 +68,18 @@ const HELP = `
     videos are skipped. Ctrl-C stops cleanly.
 
 
+  Video and frames
+    ant video <url|file>... [options]
+                              Save the whole video (MP4) for studying how it
+                              looks. A file on this computer isn't copied
+    -d, --out-dir <dir>       Folder for videos and frames (default: videos)
+        --frames              Also save a still at each scene change, plus
+                              frames.json with each frame's time
+        --every <seconds>     A still every N seconds instead (implies --frames)
+        --max-frames <n>      At most this many stills per video (default: 60)
+    The cookie options and -q work here too. stdout lists each video, then
+    its frames folder.
+
   Backends
     auto    whisper.cpp if it's installed, else OPENAI_API_KEY or GROQ_API_KEY
     local   whisper.cpp — nothing leaves the machine  (brew install whisper-cpp)
@@ -91,6 +105,7 @@ const HELP = `
     ant "<reel-url>" --cookies-from-browser chrome --model medium
     ant -i urls.txt -f md -d notes           # bulk: one Markdown file per video
     ant -i notes/failed.txt -f md -d notes   # re-run only the failures
+    ant video "<url>" --frames -d refs       # the video and a still per scene
 `;
 
 async function version(): Promise<string> {
@@ -128,6 +143,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     await serveMcp();
     return 0;
   }
+  if (argv[0] === "video") return runVideo(argv.slice(1));
 
   const { values, positionals } = parseArgs({
     args: argv,
@@ -227,6 +243,56 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   }
 
   return 0;
+}
+
+/** `ant video`: save each video, and its frames when asked. */
+async function runVideo(argv: string[]): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: {
+      "out-dir": { type: "string", short: "d" },
+      frames: { type: "boolean" },
+      every: { type: "string" },
+      "max-frames": { type: "string" },
+      "cookies-from-browser": { type: "string" },
+      cookies: { type: "string" },
+      quiet: { type: "boolean", short: "q" },
+      help: { type: "boolean", short: "h" },
+    },
+  });
+  if (values.help || positionals.length === 0) {
+    (values.help ? process.stdout : process.stderr).write(`${HELP}\n`);
+    return values.help ? 0 : 1;
+  }
+  const every = values.every === undefined ? undefined : amount(values.every, "every", 0, { min: 0.01 });
+  const maxFrames = amount(values["max-frames"], "max-frames", 60, { integer: true, min: 1 });
+  const log = (message: string) => {
+    if (!values.quiet) process.stderr.write(`[anytranscript] ${message}\n`);
+  };
+
+  let failed = 0;
+  for (const input of positionals) {
+    try {
+      const saved = await saveVideo(input, {
+        dir: values["out-dir"] ?? "videos",
+        frames: values.frames ?? false,
+        every,
+        maxFrames,
+        ...(values["cookies-from-browser"] ? { cookiesFromBrowser: values["cookies-from-browser"] } : {}),
+        ...(values.cookies ? { cookiesFile: values.cookies } : {}),
+        onProgress: log,
+      });
+      process.stdout.write(`${saved.video}\n`);
+      if (saved.framesDir) process.stdout.write(`${saved.framesDir}\n`);
+    } catch (error) {
+      // One video stops the run only when it is the only one.
+      if (positionals.length === 1) throw error;
+      failed++;
+      log(`failed: ${input}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return failed ? 1 : 0;
 }
 
 type Values = Record<string, string | boolean | undefined>;

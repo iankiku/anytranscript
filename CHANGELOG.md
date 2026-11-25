@@ -25,6 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Save the video itself, and still frames from it**, for studying how a
+  video looks: `ant video <url> --frames -d refs` saves `refs/<name>.mp4` and
+  a still at each scene change in `refs/<name>-frames/`, with `frames.json`
+  naming each frame's time. `--every 5` takes one every 5 seconds instead, and
+  `--max-frames` caps the count (default 60). A file on this computer gets
+  frames without being copied. In the library: `saveVideo()` and
+  `extractFrames()`.
+
+### Added
+
 - **Transcribe video and audio files on your computer**, not only links:
   `ant ~/Downloads/IMG_2509.MOV -o notes.md`. Any file ffmpeg reads works
   (`.mov`, `.mp4`, `.m4a`, `.mp3`, `.wav`...), given as a plain, relative,
